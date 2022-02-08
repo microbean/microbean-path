@@ -1,0 +1,828 @@
+/* -*- mode: Java; c-basic-offset: 2; indent-tabs-mode: nil; coding: utf-8-unix -*-
+ *
+ * Copyright © 2022 microBean™.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied.  See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+package org.microbean.path;
+
+import java.lang.StackWalker.StackFrame;
+
+import java.lang.constant.ClassDesc;
+import java.lang.constant.Constable;
+import java.lang.constant.ConstantDesc;
+import java.lang.constant.DynamicConstantDesc;
+import java.lang.constant.MethodHandleDesc;
+import java.lang.constant.MethodTypeDesc;
+
+import java.lang.reflect.GenericArrayType;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Spliterator;
+import java.util.TreeMap;
+
+import java.util.stream.Stream;
+
+import org.microbean.constant.Constables;
+
+import org.microbean.qualifier.Qualified;
+import org.microbean.qualifier.Qualifiers;
+
+import static java.lang.constant.ConstantDescs.BSM_INVOKE;
+import static java.lang.constant.ConstantDescs.CD_List;
+import static java.lang.constant.ConstantDescs.CD_String;
+import static java.lang.constant.ConstantDescs.CD_boolean;
+import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
+import static java.lang.constant.ConstantDescs.FALSE;
+import static java.lang.constant.ConstantDescs.TRUE;
+
+import static java.lang.constant.DirectMethodHandleDesc.Kind.STATIC;
+
+import static org.microbean.path.ConstantDescs.CD_Path;
+import static org.microbean.path.ConstantDescs.CD_PathElement;
+
+import static org.microbean.qualifier.ConstantDescs.CD_Qualifiers;
+
+/**
+ * A {@linkplain Qualified qualified} sequence of {@linkplain
+ * Path.Element named and qualified elements} that "points to" an
+ * object and that can be used for many different purposes.
+ *
+ * <p>A {@link Path} can be used like a {@link javax.naming.Name
+ * javax.naming.Name}, or like a {@link java.nio.file.Path
+ * java.nio.file.Path}, or like a {@link java.net.URI java.net.URI}.
+ * It differs from these other objects in that it combines some of
+ * their concepts together.</p>
+ *
+ * @author <a href="https://about.me/lairdnelson"
+ * target="_parent">Laird Nelson</a>
+ *
+ * @see Path.Element
+ */
+public final class Path<T extends Constable> implements Iterable<Path.Element<? extends Constable, ? extends Constable>>, Qualified<String, Constable, T> {
+
+
+  /*
+   * Static fields.
+   */
+
+
+  private static final StackWalker stackWalker = StackWalker.getInstance();
+
+  private static final Path<? extends Constable> ROOT = new Path<>();
+
+
+  /*
+   * Instance fields.
+   */
+
+
+  private final Qualifiers<String, Constable> qualifiers;
+
+  private final List<Element<?, ?>> elements;
+
+  private final boolean transliterated;
+
+
+  /*
+   * Constructors.
+   */
+
+
+  // For use by ROOT only.
+  @SuppressWarnings("unchecked")
+  private Path() {
+    this(Qualifiers.of(), List.of(), (Element<? extends Constable, T>)Element.root(), true);
+  }
+
+  /**
+   * Creates a new {@link Path}.
+   *
+   * @param qualifiers the {@link Path}'s {@linkplain #qualifiers()
+   * qualifiers}; must not be {@code null}
+   *
+   * @param elements the {@linkplain Element elements} of this {@link
+   * Path}; must not be {@code null}; may be {@linkplain
+   * List#isEmpty() empty}
+   *
+   * @param lastElement the {@linkplain #lastElement last element} of
+   * this {@link Path}; must not be {@code null}
+   *
+   * @exception NullPointerException if any parameter is {@code null}
+   */
+  public Path(final Qualifiers<String, Constable> qualifiers,
+              final List<? extends Element<? extends Constable, ? extends Constable>> elements,
+              final Element<? extends Constable, T> lastElement) {
+    this(qualifiers, elements, lastElement, false);
+  }
+
+  Path(final Qualifiers<String, Constable> qualifiers,
+       final List<? extends Element<? extends Constable, ? extends Constable>> elements,
+       final Element<? extends Constable, T> lastElement,
+       final boolean transliterated) {
+    super();
+    final Map<String, Constable> pathQualifiers = new TreeMap<>(qualifiers.toMap());
+    final int size = elements.size();
+    if (size > 0) {
+      final List<Element<? extends Constable, ? extends Constable>> newList = new ArrayList<>(size + 1);
+      String prefix = null;
+      for (int i = 0; i < size; i++) {
+        final Element<? extends Constable, ? extends Constable> e = elements.get(i);
+        newList.add(e);
+        prefix = prefix == null ? e.name() : prefix + "." + e.name();
+        final String finalPrefix = prefix;
+        pathQualifiers.putAll(e.qualifiers().withPrefix(k -> finalPrefix + "." + k).toMap());
+      }
+      newList.add(lastElement);
+      final String finalPrefix = prefix + "." + lastElement.name();
+      pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> finalPrefix + "." + k).toMap());
+      this.elements = Collections.unmodifiableList(newList);
+    } else {
+      pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> lastElement.name() + "." + k).toMap());
+      this.elements = List.of(lastElement);
+    }
+    this.qualifiers = new Qualifiers<>(pathQualifiers);
+    this.transliterated = transliterated;
+  }
+
+
+  /*
+   * Instance methods.
+   */
+
+
+  /**
+   * Returns an {@link Optional} containing a {@link ConstantDesc}
+   * representing this {@link Path}.
+   *
+   * @return an {@link Optional} containing a {@link ConstantDesc}
+   * representing this {@link Path}; never {@code null}; possibly
+   * {@linkplain Optional#isEmpty() empty}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  @Override // Constable
+  public final Optional<? extends ConstantDesc> describeConstable() {
+    if (this.isRoot()) {
+      return
+        Optional.of(DynamicConstantDesc.ofNamed(BSM_INVOKE,
+                                                DEFAULT_NAME,
+                                                CD_Path,
+                                                MethodHandleDesc.ofMethod(STATIC,
+                                                                          CD_Path,
+                                                                          "root",
+                                                                          MethodTypeDesc.of(CD_Path))));
+    } else {
+      final ConstantDesc qualifiers = this.qualifiers().describeConstable().orElse(null);
+      if (qualifiers != null) {
+        final ConstantDesc elements = Constables.describeConstable(this.elements.subList(0, this.size() - 1)).orElse(null);
+        if (elements != null) {
+          final ConstantDesc lastElement = this.elements.get(this.size() - 1).describeConstable().orElse(null);
+          if (lastElement != null) {
+            return
+              Optional.of(DynamicConstantDesc.ofNamed(BSM_INVOKE,
+                                                      DEFAULT_NAME,
+                                                      CD_Path,
+                                                      MethodHandleDesc.ofConstructor(CD_Path,
+                                                                                     CD_Qualifiers,
+                                                                                     CD_List,
+                                                                                     CD_PathElement,
+                                                                                     CD_boolean),
+                                                      qualifiers,
+                                                      elements,
+                                                      lastElement,
+                                                      this.transliterated ? TRUE : FALSE));
+          }
+        }
+      }
+    }
+    return Optional.empty();
+  }
+
+  /**
+   * Returns the {@link Qualifiers} that qualifies this {@link Path}.
+   *
+   * @return the {@link Qualifiers} that qualifies this {@link Path}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  @Override // Qualified<String, Constable, T>
+  public final Qualifiers<String, Constable> qualifiers() {
+    return this.qualifiers;
+  }
+
+  /**
+   * Returns an {@link Iterator} that iterates over the {@linkplain
+   * Element elements} of this {@link Path}, including the {@linkplain
+   * #lastElement() last element}.
+   *
+   * @return an {@link Iterator} that iterates over the {@linkplain
+   * Element elements} of this {@link Path}, including the {@linkplain
+   * #lastElement() last element}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  @Override // Iterable<Element<? extends Constable, ? extends Constable>>
+  public final Iterator<Element<? extends Constable, ? extends Constable>> iterator() {
+    return this.elements.iterator();
+  }
+
+  /**
+   * Returns a {@link Spliterator} for the {@linkplain Element
+   * elements} of this {@link Path}, including the {@linkplain
+   * #lastElement() last element}.
+   *
+   * @return a {@link Spliterator} for the {@linkplain Element
+   * elements} of this {@link Path}, including the {@linkplain
+   * #lastElement() last element}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  @Override // Iterable<Element<? extends Constable, ? extends Constable>>
+  public final Spliterator<Element<? extends Constable, ? extends Constable>> spliterator() {
+    return this.elements.spliterator();
+  }
+
+  /**
+   * Returns the number of {@link Element}s in this {@link Path},
+   * which is always greater than or equal to {@code 1}.
+   *
+   * @return the number of {@link Element}s in this {@link Path}
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  public final int size() {
+    return this.elements.size();
+  }
+
+  /**
+   * Returns the last {@link Element} in this {@link Path}.
+   *
+   * @return the last {@link Element} in this {@link Path}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  @SuppressWarnings("unchecked")
+  public final Element<? extends Constable, T> lastElement() {
+    return (Element<? extends Constable, T>)this.elements.get(this.size() - 1);
+  }
+
+  /**
+   * Calls the {@link Element#qualified()} method on the {@linkplain
+   * lastElement() last element in this <code>Path</code>} and returns
+   * the result.
+   *
+   * @return the result of invoking the {@link Element#qualified()}
+   * method on the {@linkplain lastElement() last element in this
+   * <code>Path</code>}
+   *
+   * @nullability This method may return {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  @Override // Qualified<String, Constable, T>
+  public final T qualified() {
+    return this.lastElement().qualified();
+  }
+
+  /**
+   * Returns {@code true} if this {@link Path} is a <em>root
+   * path</em>, which is true when it has only one {@linkplain Element
+   * element} and that {@linkplain Element element} {@linkplain
+   * Element#isRoot() is root}.
+   *
+   * @return {@code true} if this {@link Path} is a <em>root
+   * path</em>; {@code false} otherwise
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  public final boolean isRoot() {
+    return this.size() == 1 && this.lastElement().isRoot();
+  }
+
+  /**
+   * Returns a hashcode for this {@link Path}.
+   *
+   * @return a hashcode for this {@link Path}
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  @Override // Object
+  public final int hashCode() {
+    int hashCode = 17;
+    Object value = this.qualifiers();
+    int c = value == null ? 0 : value.hashCode();
+    hashCode = 37 * hashCode + c;
+    value = this.elements;
+    c = value == null ? 0 : value.hashCode();
+    hashCode = 37 * hashCode + c;
+    c = this.transliterated ? 1 : 0;
+    hashCode = 37 * hashCode + c;
+    return hashCode;
+  }
+
+  /**
+   * Returns {@code true} if and only if the supplied {@link Object}
+   * is equal to this {@link Path}.
+   *
+   * @param other the {@link Object} to test; may be {@code null} in
+   * which case {@code false} will be returned
+   *
+   * @return {@code true} if and only if the supplied {@link Object}
+   * is equal to this {@link Path}
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  @Override // Object
+  public final boolean equals(final Object other) {
+    if (other == this) {
+      return true;
+    } else if (other != null && other.getClass() == this.getClass()) {
+      final Path<?> her = (Path<?>)other;
+      return
+        Objects.equals(this.qualifiers(), her.qualifiers()) &&
+        Objects.equals(this.elements, her.elements) &&
+        this.transliterated == her.transliterated;
+    } else {
+      return false;
+    }
+  }
+
+
+  /*
+   * Static methods.
+   */
+
+
+  /**
+   * Returns a {@link Path} that {@linkplain #isRoot() is a <em>root
+   * path</em>}.
+   *
+   * @return a {@link Path} that {@linkplain #isRoot() is a <em>root
+   * path</em>}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see #isRoot()
+   */
+  public static final Path<? extends Constable> root() {
+    return ROOT;
+  }
+
+  private static final String findUserPackageName(final Stream<StackFrame> stream) {
+    final String className = stream.sequential()
+      .dropWhile(f -> f.getClassName().startsWith(Path.class.getPackageName()))
+      .dropWhile(f -> f.getClassName().contains(".$Proxy")) // skip JDK proxies (and any other kind of proxies)
+      .map(StackFrame::getClassName)
+      .findFirst()
+      .orElse(null);
+    if (className == null) {
+      return "";
+    } else {
+      final int lastIndex = className.lastIndexOf('.');
+      if (lastIndex < 0) {
+        return "";
+      } else if (lastIndex == 0) {
+        throw new AssertionError("className: " + className);
+      } else {
+        return className.substring(0, lastIndex);
+      }
+    }
+  }
+
+
+  /*
+   * Inner and nested classes.
+   */
+
+
+  /**
+   * An element normally {@linkplain Path#iterator() within} a {@link
+   * Path}, consisting of a {@link #qualifiers() Qualifiers}, a
+   * {@linkplain #name() name}, and an optional {@linkplain
+   * #qualified() thing that it designates or points to}.
+   *
+   * @author <a href="https://about.me/lairdnelson"
+   * target="_parent">Laird Nelson</a>
+   */
+  public static final class Element<V extends Constable, T extends Constable> implements Qualified<String, V, T> {
+
+
+    /*
+     * Static fields.
+     */
+
+
+    private static final Element<? extends Constable, ? extends Constable> ROOT = new Element<>();
+
+
+    /*
+     * Instance fields.
+     */
+
+
+    private final Qualifiers<String, V> qualifiers;
+
+    private final T qualified;
+
+    private final String name;
+
+
+    /*
+     * Constructors.
+     */
+
+
+    // For use by ROOT only.
+    private Element() {
+      super();
+      this.qualifiers = Qualifiers.of();
+      this.qualified = null;
+      this.name = "";
+    }
+
+    /**
+     * Creates a new {@link Element}.
+     *
+     * @param qualified the thing this {@link Element} describes; may
+     * be {@code null}
+     *
+     * @param name the name of this {@link Element}; may be {@code
+     * null} only if {@code qualified} is not {@code null}
+     *
+     * @exception IllegalArgumentException if both {@code qualified}
+     * and {@code name} are {@code null}
+     */
+    public Element(final T qualified,
+                   final String name) {
+      this(Qualifiers.of(), qualified, name);
+    }
+
+    /**
+     * Creates a new {@link Element}.
+     *
+     * @param qualifiers the {@link Qualifiers} qualifying this {@link
+     * Element}; may be {@code null} in which case an {@linkplain
+     * Qualifiers#of() empty <code>Qualifiers</code>} will be used
+     * instead
+     *
+     * @param qualified the thing this {@link Element} describes; may
+     * be {@code null}
+     *
+     * @param name the name of this {@link Element}; may be {@code
+     * null} only if {@code qualified} is not {@code null}
+     *
+     * @exception IllegalArgumentException if both {@code qualified}
+     * and {@code name} are {@code null}
+     */
+    public Element(final Qualifiers<String, V> qualifiers,
+                   final T qualified,
+                   final String name) {
+      super();
+      if (qualified == null) {
+        if (name == null || name.isEmpty()) {
+          throw new IllegalArgumentException("An empty name may not be paired with a null qualified");
+        } else {
+          this.name = name;
+        }
+      } else {
+        this.name = name == null ? "" : name;
+      }
+      this.qualifiers = qualifiers == null || qualifiers.isEmpty() ? Qualifiers.of() : qualifiers;
+      this.qualified = qualified;
+    }
+
+
+    /*
+     * Instance methods.
+     */
+
+
+    /**
+     * Returns an {@link Optional} containing a {@link ConstantDesc}
+     * representing this {@link Element}.
+     *
+     * @return an {@link Optional} containing a {@link ConstantDesc}
+     * representing this {@link Element}; never {@code null}; possibly
+     * {@linkplain Optional#isEmpty() empty}
+     *
+     * @nullability This method never returns {@code null}.
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    @Override // Constable
+    public final Optional<? extends ConstantDesc> describeConstable() {
+      if (this.isRoot()) {
+        return
+          Optional.of(DynamicConstantDesc.ofNamed(BSM_INVOKE,
+                                                  DEFAULT_NAME,
+                                                  CD_PathElement,
+                                                  MethodHandleDesc.ofMethod(STATIC,
+                                                                            CD_PathElement,
+                                                                            "root",
+                                                                            MethodTypeDesc.of(CD_PathElement))));
+      } else {
+        final ConstantDesc qualifiers = this.qualifiers().describeConstable().orElse(null);
+        if (qualifiers != null) {
+          final ConstantDesc qualified = this.qualified().describeConstable().orElse(null);
+          if (qualified != null) {
+            final String name = this.name();
+            return
+              Optional.of(DynamicConstantDesc.ofNamed(BSM_INVOKE,
+                                                      name,
+                                                      CD_PathElement,
+                                                      MethodHandleDesc.ofConstructor(CD_PathElement,
+                                                                                     CD_Qualifiers,
+                                                                                     ClassDesc.of("java.lang.constant.Constable"),
+                                                                                     CD_String),
+                                                      qualifiers,
+                                                      qualified,
+                                                      name));
+          }
+        }
+      }
+      return Optional.empty();
+    }
+
+    /**
+     * Returns the {@link Qualifiers} that qualifies this {@link
+     * Element}.
+     *
+     * @return the {@link Qualifiers} that qualifies this {@link
+     * Element}
+     *
+     * @nullability This method never returns {@code null}.
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by multiple
+     * threads.
+     */
+    @Override // Qualified<String, V, T>
+    public final Qualifiers<String, V> qualifiers() {
+      return this.qualifiers;
+    }
+
+    /**
+     * Returns the thing that this {@link Element} describes (which
+     * may be nothing).
+     *
+     * @return the thing that this {@link Element} describes, which
+     * may be nothing, in which case {@code null} will be returned
+     *
+     * @nullability This method may return {@code null}.
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    @Override // Qualified<K, V, T>
+    public final T qualified() {
+      return this.qualified;
+    }
+
+    /**
+     * Returns the name of this {@link Element}.
+     *
+     * @return the name of this {@link Element}
+     *
+     * @nullability This method never returns {@code null}.
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    public final String name() {
+      return this.name;
+    }
+
+    /**
+     * Returns {@code true} if this {@link Element} is a <em>root
+     * element</em>, which is true when the {@link #qualified()}
+     * method returns {@code null} and the {@link #name()} method
+     * returns an {@linkplain String#isEmpty() empty
+     * <code>String</code>}.
+     *
+     * @return {@code true} if and only if this {@link Element} is a
+     * <em>root element</em>
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    public final boolean isRoot() {
+      return this.qualified() == null && this.name().isEmpty();
+    }
+
+    /**
+     * Returns a {@link Element}, <strong>usually newly
+     * created</strong>, whose {@linkplain #qualifiers() qualifiers}
+     * have keys that are prefixed with the supplied {@code prefix}.
+     *
+     * @param prefix the prefix to apply; may be {@code null} or
+     * {@linkplain String#isEmpty() empty} in which case {@code this}
+     * will be returned
+     *
+     * @return an {@link Element}, <strong>usually newly
+     * created</strong>, whose {@linkplain #qualifiers() qualifiers}
+     * have keys that are prefixed with the supplied {@code prefix}
+     *
+     * @nullability This method never returns {@code null}.
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    public final Element<V, T> withQualifiersPrefix(final String prefix) {
+      if (prefix == null || prefix.isEmpty()) {
+        return this;
+      }
+      return new Element<>(this.qualifiers().withPrefix(k -> prefix + k),
+                           this.qualified(),
+                           this.name());
+    }
+
+    /**
+     * Returns a hashcode for this {@link Element}.
+     *
+     * @return a hashcode for this {@link Element}
+     *
+     * @idempotency This method is idempotent.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    @Override // Object
+    public final int hashCode() {
+      int hashCode = 17;
+      Object value = this.qualified();
+      int c = value == null ? 0 : value.hashCode();
+      hashCode = 37 * hashCode + c;
+      value = this.name();
+      c = value == null ? 0 : value.hashCode();
+      hashCode = 37 * hashCode + c;
+      value = this.qualifiers();
+      c = value == null ? 0 : value.hashCode();
+      hashCode = 37 * hashCode + c;
+      return hashCode;
+    }
+
+    /**
+     * Returns {@code true} if the supplied {@link Object} is equal to
+     * this {@link Element}.
+     *
+     * @param other the {@link Object} to test; may be {@code null} in
+     * which case {@code false} will be returned
+     *
+     * @return {@code true} if the supplied {@link Object} is equal to
+     * this {@link Element}; {@code false} otherwise
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    @Override // Object
+    public final boolean equals(final Object other) {
+      if (this == other) {
+        return true;
+      } else if (other != null && this.getClass() == other.getClass()) {
+        final Element<?, ?> her = (Element<?, ?>)other;
+        return
+          Objects.equals(this.qualified(), her.qualified()) &&
+          Objects.equals(this.name(), her.name()) &&
+          Objects.equals(this.qualifiers(), her.qualifiers());
+      } else {
+        return false;
+      }
+    }
+
+    /**
+     * Returns a non-{@code null} {@link String} representation of
+     * this {@link Element}.
+     *
+     * <p>The format of the {@link String} that is returned is
+     * deliberately unspecified and subject to change without notice
+     * from version to version of this class.</p>
+     *
+     * @return a {@link String} representation of this {@link Element}
+     *
+     * @nullability This method never returns {@code null}
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    @Override // Object
+    public final String toString() {
+      final StringBuilder sb = new StringBuilder();
+      final T qualified = this.qualified();
+      if (qualified != null) {
+        sb.append(qualified).append(':');
+      }
+      sb.append(name);
+      final Map<?, ?> map = this.qualifiers().toMap();
+      if (!map.isEmpty()) {
+        sb.append(map);
+      }
+      return sb.toString();
+    }
+
+
+    /*
+     * Static methods.
+     */
+
+
+    /**
+     * Returns a {@link Element} that {@linkplain #isRoot() is a
+     * <em>root element</em>}.
+     *
+     * @return an {@link Element} that {@linkplain #isRoot() is a
+     * <em>root element</em>}
+     *
+     * @nullability This method never returns {@code null}.
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    public static final Element<? extends Constable, ? extends Constable> root() {
+      return ROOT;
+    }
+
+  }
+
+}
