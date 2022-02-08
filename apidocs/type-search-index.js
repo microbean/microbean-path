@@ -1,0 +1,1 @@
+typeSearchIndex = [{"l":"All Classes and Interfaces","u":"allclasses-index.html"},{"p":"org.microbean.path","l":"ConstantDescs"},{"p":"org.microbean.path","l":"Path.Element"},{"p":"org.microbean.path","l":"Path"}];updateSearchResults();
