@@ -30,6 +30,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -39,9 +41,13 @@ import java.util.Optional;
 import java.util.Spliterator;
 import java.util.TreeMap;
 
+import java.util.function.BiFunction;
+
 import java.util.stream.Stream;
 
 import org.microbean.constant.Constables;
+
+import org.microbean.development.annotation.Experimental;
 
 import org.microbean.qualifier.Qualified;
 import org.microbean.qualifier.Qualifiers;
@@ -72,6 +78,10 @@ import static org.microbean.qualifier.ConstantDescs.CD_Qualifiers;
  * It differs from these other objects in that it combines some of
  * their concepts together.</p>
  *
+ * @param <T> the type of the {@link Path}; most notably
+ * <strong>not necessarily</strong> the type of the thing the {@link
+ * Path} "points to"; more like an additional qualifier
+ *
  * @author <a href="https://about.me/lairdnelson"
  * target="_parent">Laird Nelson</a>
  *
@@ -88,6 +98,10 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
   private static final StackWalker stackWalker = StackWalker.getInstance();
 
   private static final Path<? extends Constable> ROOT = new Path<>();
+
+  private static final char PREFIX_SEPARATOR_CHAR = '.';
+
+  private static final String PREFIX_SEPARATOR = "" + PREFIX_SEPARATOR_CHAR;
 
 
   /*
@@ -116,6 +130,38 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
   /**
    * Creates a new {@link Path}.
    *
+   * @param lastElement the {@linkplain #lastElement last element} of
+   * this {@link Path}; must not be {@code null}
+   *
+   * @exception NullPointerException if any parameter is {@code null}
+   *
+   * @see #Path(Qualifiers, List, Element)
+   */
+  public Path(final Element<? extends Constable, ? extends T> lastElement) {
+    this(Qualifiers.of(), List.of(), lastElement, false);
+  }
+
+  /**
+   * Creates a new {@link Path}.
+   *
+   * @param qualifiers the {@link Path}'s {@linkplain #qualifiers()
+   * qualifiers}; must not be {@code null}
+   *
+   * @param lastElement the {@linkplain #lastElement last element} of
+   * this {@link Path}; must not be {@code null}
+   *
+   * @exception NullPointerException if any parameter is {@code null}
+   *
+   * @see #Path(Qualifiers, List, Element)
+   */
+  public Path(final Qualifiers<String, Constable> qualifiers,
+              final Element<? extends Constable, ? extends T> lastElement) {
+    this(qualifiers, List.of(), lastElement, false);
+  }
+
+  /**
+   * Creates a new {@link Path}.
+   *
    * @param qualifiers the {@link Path}'s {@linkplain #qualifiers()
    * qualifiers}; must not be {@code null}
    *
@@ -130,33 +176,33 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
    */
   public Path(final Qualifiers<String, Constable> qualifiers,
               final List<? extends Element<? extends Constable, ? extends Constable>> elements,
-              final Element<? extends Constable, T> lastElement) {
+              final Element<? extends Constable, ? extends T> lastElement) {
     this(qualifiers, elements, lastElement, false);
   }
 
-  Path(final Qualifiers<String, Constable> qualifiers,
-       final List<? extends Element<? extends Constable, ? extends Constable>> elements,
-       final Element<? extends Constable, T> lastElement,
-       final boolean transliterated) {
+  private Path(final Qualifiers<String, Constable> qualifiers,
+               final List<? extends Element<? extends Constable, ? extends Constable>> elements,
+               final Element<? extends Constable, ? extends T> lastElement,
+               final boolean transliterated) {
     super();
     final Map<String, Constable> pathQualifiers = new TreeMap<>(qualifiers.toMap());
     final int size = elements.size();
     if (size > 0) {
       final List<Element<? extends Constable, ? extends Constable>> newList = new ArrayList<>(size + 1);
-      String prefix = null;
+      final StringBuilder prefix = new StringBuilder();
       for (int i = 0; i < size; i++) {
         final Element<? extends Constable, ? extends Constable> e = elements.get(i);
         newList.add(e);
-        prefix = prefix == null ? e.name() : prefix + "." + e.name();
-        final String finalPrefix = prefix;
-        pathQualifiers.putAll(e.qualifiers().withPrefix(k -> finalPrefix + "." + k).toMap());
+        prefix.append(e.name()).append(PREFIX_SEPARATOR_CHAR);
+        final String finalPrefix = prefix.toString();
+        pathQualifiers.putAll(e.qualifiers().withPrefix(k -> finalPrefix + PREFIX_SEPARATOR + k).toMap());
       }
       newList.add(lastElement);
-      final String finalPrefix = prefix + "." + lastElement.name();
-      pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> finalPrefix + "." + k).toMap());
+      final String finalPrefix = prefix.append(lastElement.name()).toString();
+      pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> finalPrefix + PREFIX_SEPARATOR + k).toMap());
       this.elements = Collections.unmodifiableList(newList);
     } else {
-      pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> lastElement.name() + "." + k).toMap());
+      pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> lastElement.name() + PREFIX_SEPARATOR + k).toMap());
       this.elements = List.of(lastElement);
     }
     this.qualifiers = new Qualifiers<>(pathQualifiers);
@@ -168,6 +214,86 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
    * Instance methods.
    */
 
+
+  /**
+   * Returns {@code true} if and only if this {@link Path} is the
+   * result of a call to {@link #transliterate(BiFunction)}.
+   *
+   * @return {@code true} if this {@link Path} is {@linkplain
+   * #transliterate(BiFunction) transliterated}; {@code false}
+   * otherwise
+   */
+  public final boolean transliterated() {
+    return this.transliterated;
+  }
+
+  /**
+   * <em>Transliterates</em> this {@link Path} into another,
+   * semantically equivalent {@link Path} by applying the supplied
+   * {@link BiFunction}, and returns the transliterated {@link Path}.
+   *
+   * <p>The supplied {@link BiFunction} accepts a Java package name as
+   * its first argument, which will be the first package name
+   * {@linkplain StackWalker encountered in the current thread's
+   * stack} that identifies a caller whose package name is not equal
+   * to {@link Class#getPackageName() Path.class.getPackageName()}.
+   * Its second argument is a {@link Element Element} from this
+   * {@link Path}.  It must return a {@link Element} representing the
+   * transliteration of its second argument (which may be the second
+   * argument itself).</p>
+   *
+   * <p>Transliteration can be needed when a {@link Path} is defined
+   * by a Java class and used by an application containing that Java
+   * class&mdash;because another Java class may have used the same
+   * element names to refer to different things.</p>
+   *
+   * <p>If this {@link Path} {@linkplain #transliterated() is
+   * already transliterated} then it is returned.</p>
+   *
+   * @param f a {@link BiFunction} responsible for the
+   * transliteration, element by element; may be {@code null}
+   *
+   * @return the transliterated {@link Path}, which may be this {@link
+   * Path}; never {@code null}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic, but the
+   * supplied {@link BiFunction} may not be.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads, but the supplied {@link BiFunction} may not be.
+   *
+   * @see #transliterated()
+   */
+  @Experimental
+  @SuppressWarnings("unchecked")
+  public final Path<T> transliterate(final BiFunction<? super String, ? super Element<? extends Constable, ? extends Constable>, ? extends Element<? extends Constable, ? extends Constable>> f) {
+    if (this.transliterated()) {
+      return this;
+    } else {
+      final int size = this.size();
+      final int lastIndex = size - 1;
+      if (f == null) {
+        return
+          new Path<>(this.qualifiers(),
+                     this.elements.subList(0, lastIndex),
+                     (Element<? extends Constable, ? extends T>)this.elements.get(lastIndex),
+                     true);
+      } else {
+        final String userPackageName = stackWalker.walk(Path::findUserPackageName);
+        final List<Element<? extends Constable, ? extends Constable>> newElements = new ArrayList<>(lastIndex);
+        for (int i = 0; i < lastIndex; i++) {
+          newElements.add(f.apply(userPackageName, this.elements.get(i)));
+        }
+        return
+          new Path<>(this.qualifiers(),
+                     newElements,
+                     (Element<? extends Constable, ? extends T>)f.apply(userPackageName, this.elements.get(lastIndex)),
+                     true);
+      }
+    }
+  }
 
   /**
    * Returns an {@link Optional} containing a {@link ConstantDesc}
@@ -353,6 +479,17 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
   }
 
   /**
+   * Returns {@code true} if and only if this {@link Path} is
+   * <em>absolute</em>, which means that its first {@link Element} is
+   * a {@linkplain Element#isRoot() root} {@link Element}.
+   *
+   * @return {@code true} if and only if this {@link Path} is absolute
+   */
+  public final boolean absolute() {
+    return this.elements.get(0).isRoot();
+  }
+
+  /**
    * Returns a hashcode for this {@link Path}.
    *
    * @return a hashcode for this {@link Path}
@@ -406,6 +543,134 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
     }
   }
 
+  /**
+   * Returns a <strong>new</strong> {@link Path} consisting of this
+   * {@link Path}'s {@linkplain #qualifiers() qualifiers} and
+   * {@linkplain Element elments} plus the supplied {@linkplain
+   * Element element}.
+   *
+   * @param <U> the type of the new {@link Path}
+   *
+   * @param element the new {@link Path}'s {@linkplain #lastElement()
+   * last element}; must not be {@code null}
+   *
+   * @return a <strong>new</strong> {@link Path} consisting of this
+   * {@link Path}'s {@linkplain #qualifiers() qualifiers} and
+   * {@linkplain Element elments} plus the supplied {@linkplain
+   * Element element}
+   *
+   * @exception NullPointerException if {@code element} is {@code
+   * null}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  public final <U extends Constable> Path<U> plus(final Element<? extends Constable, ? extends U> element) {
+    return new Path<>(this.qualifiers(), this.elements, element);
+  }
+
+  /**
+   * Returns a <strong>new</strong> {@link Path} consisting of this
+   * {@link Path}'s {@linkplain #qualifiers() qualifiers}, this {@link
+   * Path}'s elements, the supplied {@code elements}, and the supplied
+   * {@code lastElement}.
+   *
+   * @param <U> the type of the new {@link Path}
+   *
+   * @param elements additional {@linkplain Element elements}; must
+   * not be {@code null}
+   *
+   * @param lastElement the new {@link Path}'s {@linkplain
+   * #lastElement() last element}; must not be {@code null}
+   *
+   * @return a <strong>new</strong> {@link Path} consisting of this
+   * {@link Path}'s {@linkplain #qualifiers() qualifiers}, this {@link
+   * Path}'s elements, the supplied {@code elements}, and the supplied
+   * {@code lastElement}
+   *
+   * @exception NullPointerException if {@code element} is {@code
+   * null}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  public final <U extends Constable> Path<U> plus(final Collection<? extends Element<? extends Constable,
+                                                                                     ? extends Constable>> elements,
+                                                  final Element<? extends Constable, ? extends U> lastElement) {
+    final List<Element<? extends Constable, ? extends Constable>> newElements = new ArrayList<>(this.size() + elements.size());
+    newElements.addAll(elements);
+    return new Path<>(this.qualifiers(), newElements, lastElement);
+  }
+
+  /**
+   * Returns a <strong>new</strong> {@link Path} consisting of this
+   * {@link Path}'s {@linkplain #qualifiers() qualifiers} combined
+   * with a prefixed version of the supplied {@link Path}'s
+   * {@linkplain #qualifiers() qualifiers}, this {@link Path}'s
+   * elements, the supplied {@link Path}'s elements, and the supplied
+   * {@link Path}'s {@linkplain #lastElement() last element}.
+   *
+   * <p>The new {@link Path}'s {@linkplain #qualifiers() qualifiers}
+   * are those of this {@link Path} plus those of the supplied {@link
+   * Path}, where each qualifier in the supplied {@link Path}'s
+   * {@linkplain #qualifiers() qualifiers} has been prefixed with a
+   * {@link String} formed from the {@linkplain Element#name() names}
+   * of all the {@linkplain Element elements} in this {@link
+   * Path}.</p>
+   *
+   * @param <U> the type of the new {@link Path}
+   *
+   * @param path the {@link Path} to logically append; must not be
+   * {@code null}
+   *
+   * @return a <strong>new</strong> {@link Path} consisting of this
+   * {@link Path}'s {@linkplain #qualifiers() qualifiers} combined
+   * with a prefixed version of the supplied {@link Path}'s
+   * {@linkplain #qualifiers() qualifiers}, this {@link Path}'s
+   * elements, the supplied {@link Path}'s elements, and the supplied
+   * {@link Path}'s {@linkplain #lastElement() last element}
+   *
+   * @exception NullPointerException if {@code path} is {@code null}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  @SuppressWarnings("unchecked")
+  public final <U extends Constable> Path<U> plus(final Path<? extends U> path) {
+    final int pathSize = path.size();
+    final List<Element<? extends Constable, ? extends Constable>> newElements = new ArrayList<>(this.size() + pathSize);
+    newElements.addAll(this.elements);
+    final int lastIndex = pathSize - 1;
+    for (int i = 0; i < lastIndex; i++) {
+      newElements.add(path.elements.get(i));
+    }
+    final String prefix = this.prefix();
+    return
+      new Path<>(path.qualifiers().withPrefix(k -> prefix + k),
+                 newElements,
+                 (Element<? extends Constable, ? extends U>)path.elements.get(lastIndex));
+  }
+
+  private final String prefix() {
+    final StringBuilder prefix = new StringBuilder();
+    for (final Element<?, ?> e : this) {
+      prefix.append(e.name()).append(PREFIX_SEPARATOR_CHAR);
+    }
+    return prefix.toString();
+  }
+
 
   /*
    * Static methods.
@@ -430,6 +695,152 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
    */
   public static final Path<? extends Constable> root() {
     return ROOT;
+  }
+
+  /**
+   * Creates a new {@link Path} formed from an {@link Element} formed
+   * from the supplied {@code qualified} and an {@linkplain
+   * String#isEmpty() empty} {@linkplain Element#name() name}, and
+   * returns it.
+   *
+   * @param <T> the type of the new {@link Path}
+   *
+   * @param qualified the {@linkplain Element#qualified() qualified
+   * item} of what will be the last {@link Element}
+   *
+   * @return a new {@link Path}
+   *
+   * @exception NullPointerException if {@code qualified} is {@code
+   * null}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see #of(Constable, List)
+   */
+  public static final <T extends Constable> Path<T> of(final T qualified) {
+    return Path.of(qualified, List.of());
+  }
+
+  /**
+   * Creates a new {@link Path} formed from an {@link Element} formed
+   * from the supplied {@code qualified} and the supplied name, and returns it.
+   *
+   * @param <T> the type of the new {@link Path}
+   *
+   * @param qualified the {@linkplain Element#qualified() qualified
+   * item} of what will be the last {@link Element}
+   *
+   * @param name the {@linkplain Element#name() name} of what will be
+   * the last {@link Element}
+   *
+   * @return a new {@link Path}
+   *
+   * @exception NullPointerException if {@code name} is {@code null}
+   *
+   * @exception IllegalArgumentException if {@code qualified} is
+   * {@code null} and name is {@code null} or an empty
+   * <code>String</code>}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see #of(Constable, List)
+   */
+  public static final <T extends Constable> Path<T> of(final T qualified, final String name) {
+    return Path.of(qualified, List.of(name));
+  }
+
+  /**
+   * Creates a new {@link Path} formed from {@link Element}s formed
+   * from the supplied {@code qualified} and the supplied array of
+   * {@linkplain Element#name() names}, and returns it.
+   *
+   * @param <T> the type of the new {@link Path}
+   *
+   * @param qualified the {@linkplain Element#qualified() qualified
+   * item} of what will be the last {@link Element}
+   *
+   * @param names an array of {@linkplain Element#name() names} from
+   * which {@link Element}s will be synthesized; must not be {@code
+   * null}
+   *
+   * @return a new {@link Path}
+   *
+   * @exception NullPointerException if {@code names} is {@code null}
+   *
+   * @exception IllegalArgumentException if {@code qualified} is
+   * {@code null} and the last element of {@code names} {@linkplain
+   * String#isEmpty() is an empty <code>String</code>}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see #of(Constable, List)
+   */
+  public static final <T extends Constable> Path<T> of(final T qualified, final String... names) {
+    return Path.of(qualified, Arrays.asList(names));
+  }
+
+  /**
+   * Creates a new {@link Path} formed from {@link Element}s formed
+   * from the supplied {@code qualified} and the supplied {@link List}
+   * of {@linkplain Element#name() names}, and returns it.
+   *
+   * @param <T> the type of the new {@link Path}
+   *
+   * @param qualified the {@linkplain Element#qualified() qualified
+   * item} of what will be the last {@link Element}
+   *
+   * @param names a {@link List} of {@linkplain Element#name() names}
+   * from which {@link Element}s will be synthesized; must not be
+   * {@code null}
+   *
+   * @return a new {@link Path}
+   *
+   * @exception NullPointerException if {@code names} is {@code null}
+   *
+   * @exception IllegalArgumentException if {@code qualified} is
+   * {@code null} and the last element of {@code names} {@linkplain
+   * String#isEmpty() is an empty <code>String</code>}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see Element#Element(Qualifiers, Constable, String)
+   */
+  public static final <T extends Constable> Path<T> of(final T qualified, final List<? extends String> names) {
+    final int lastIndex = names.size() - 1;
+    final List<Element<Constable, Constable>> elements;
+    switch (lastIndex) {
+    case -1:
+      return new Path<>(Qualifiers.of(), List.of(), new Element<>(qualified, null));
+    case 0:
+      return new Path<>(Qualifiers.of(), List.of(), new Element<>(qualified, names.get(0)));
+    default:
+      elements = new ArrayList<>(lastIndex);
+      for (int i = 0; i < lastIndex; i++) {
+        final String name = names.get(i);
+        elements.add(new Element<>(name));
+      }
+      return new Path<>(Qualifiers.of(), elements, new Element<>(qualified, names.get(lastIndex)));
+    }
   }
 
   private static final String findUserPackageName(final Stream<StackFrame> stream) {
@@ -507,17 +918,39 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
     /**
      * Creates a new {@link Element}.
      *
+     * @param name the name of this {@link Element}; must not be
+     * {@code null} or {@linkplain String#isEmpty() empty}
+     *
+     * @exception NullPointerException if {@code name} is {@code null}
+     *
+     * @exception IllegalArgumentException if {@code name} {@linkplain
+     * String#isEmpty() is empty}
+     *
+     * @see #Element(Qualifiers, Constable, String)
+     */
+    public Element(final String name) {
+      this(Qualifiers.of(), null, name);
+    }
+
+    /**
+     * Creates a new {@link Element}.
+     *
      * @param qualified the thing this {@link Element} describes; may
      * be {@code null}
      *
      * @param name the name of this {@link Element}; may be {@code
      * null} only if {@code qualified} is not {@code null}
      *
-     * @exception IllegalArgumentException if both {@code qualified}
-     * and {@code name} are {@code null}
+     * @exception NullPointerException if {@code qualified} is {@code
+     * null} and {@code name} is {@code null}
+     *
+     * @exception IllegalArgumentException if {@code qualified} is
+     * {@code null} and {@code name} {@linkplain String#isEmpty() is
+     * empty}
+     *
+     * @see #Element(Qualifiers, Constable, String)
      */
-    public Element(final T qualified,
-                   final String name) {
+    public Element(final T qualified, final String name) {
       this(Qualifiers.of(), qualified, name);
     }
 
@@ -535,15 +968,19 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
      * @param name the name of this {@link Element}; may be {@code
      * null} only if {@code qualified} is not {@code null}
      *
-     * @exception IllegalArgumentException if both {@code qualified}
-     * and {@code name} are {@code null}
+     * @exception NullPointerException if {@code qualified} is {@code
+     * null} and {@code name} is {@code null}
+     *
+     * @exception IllegalArgumentException if {@code qualified} is
+     * {@code null} and {@code name} {@linkplain String#isEmpty() is
+     * empty}
      */
-    public Element(final Qualifiers<String, V> qualifiers,
-                   final T qualified,
-                   final String name) {
+    public Element(final Qualifiers<String, V> qualifiers, final T qualified, final String name) {
       super();
       if (qualified == null) {
-        if (name == null || name.isEmpty()) {
+        if (name == null) {
+          throw new NullPointerException("name");
+        } else if (name.isEmpty()) {
           throw new IllegalArgumentException("An empty name may not be paired with a null qualified");
         } else {
           this.name = name;

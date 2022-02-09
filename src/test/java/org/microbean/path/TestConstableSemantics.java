@@ -29,6 +29,9 @@ import org.microbean.qualifier.Qualifiers;
 
 import org.microbean.path.Path.Element;
 
+import static java.lang.invoke.MethodHandles.lookup;
+import static java.lang.invoke.MethodHandles.privateLookupIn;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 final class TestConstableSemantics {
@@ -43,9 +46,12 @@ final class TestConstableSemantics {
       new Path<String>(Qualifiers.of("env", "test"),
                        List.<Element<Constable, String>>of(new Element<Constable, String>(Qualifiers.of(), "a", "a"),
                                                            new Element<Constable, String>(Qualifiers.of(), "b", "b")),
-                       new Element<Constable, String>(Qualifiers.of(), "c", "c"),
-                       false);
-    assertEquals(p, p.describeConstable().orElseThrow().resolveConstantDesc(MethodHandles.lookup()));
+                       new Element<Constable, String>(Qualifiers.of(), "c", "c"));
+    assertEquals(p,
+                 p.describeConstable()
+                 .orElseThrow()
+                 .resolveConstantDesc(privateLookupIn(Path.class,
+                                                      lookup())));
   }
   
 }
