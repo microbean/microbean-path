@@ -1395,7 +1395,7 @@
 <span class="source-line-no">1381</span><span id="line-1381">     * @threadsafety This method is safe for concurrent use by</span>
 <span class="source-line-no">1382</span><span id="line-1382">     * multiple threads.</span>
 <span class="source-line-no">1383</span><span id="line-1383">     */</span>
-<span class="source-line-no">1384</span><span id="line-1384">    public static final Element&lt;? extends Constable, ? extends Constable&gt; root() {</span>
+<span class="source-line-no">1384</span><span id="line-1384">    public static final Element&lt;? extends Constable, ?&gt; root() {</span>
 <span class="source-line-no">1385</span><span id="line-1385">      return ROOT;</span>
 <span class="source-line-no">1386</span><span id="line-1386">    }</span>
 <span class="source-line-no">1387</span><span id="line-1387"></span>
@@ -1476,7 +1476,7 @@
 <span class="source-line-no">1462</span><span id="line-1462">     * @threadsafety This method is safe for concurrent use by</span>
 <span class="source-line-no">1463</span><span id="line-1463">     * multiple threads.</span>
 <span class="source-line-no">1464</span><span id="line-1464">     */</span>
-<span class="source-line-no">1465</span><span id="line-1465">    public static final &lt;V extends Constable, T extends Constable&gt; Element&lt;V, T&gt; of(final T qualified, final String name) {</span>
+<span class="source-line-no">1465</span><span id="line-1465">    public static final &lt;V extends Constable, T&gt; Element&lt;V, T&gt; of(final T qualified, final String name) {</span>
 <span class="source-line-no">1466</span><span id="line-1466">      return new Element&lt;&gt;(qualified, name);</span>
 <span class="source-line-no">1467</span><span id="line-1467">    }</span>
 <span class="source-line-no">1468</span><span id="line-1468"></span>
@@ -1510,7 +1510,7 @@
 <span class="source-line-no">1496</span><span id="line-1496">     * @threadsafety This method is safe for concurrent use by</span>
 <span class="source-line-no">1497</span><span id="line-1497">     * multiple threads.</span>
 <span class="source-line-no">1498</span><span id="line-1498">     */</span>
-<span class="source-line-no">1499</span><span id="line-1499">    public static final &lt;V extends Constable, T extends Constable&gt; Element&lt;V, T&gt; of(final String name) {</span>
+<span class="source-line-no">1499</span><span id="line-1499">    public static final &lt;V extends Constable, T&gt; Element&lt;V, T&gt; of(final String name) {</span>
 <span class="source-line-no">1500</span><span id="line-1500">      return new Element&lt;&gt;(name);</span>
 <span class="source-line-no">1501</span><span id="line-1501">    }</span>
 <span class="source-line-no">1502</span><span id="line-1502"></span>
