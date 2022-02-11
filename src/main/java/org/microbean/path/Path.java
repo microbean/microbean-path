@@ -154,7 +154,7 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
    *
    * @see #Path(Qualifiers, List, Element)
    */
-  public Path(final Qualifiers<String, Constable> qualifiers,
+  public Path(final Qualifiers<? extends String, ? extends Constable> qualifiers,
               final Element<? extends Constable, ? extends T> lastElement) {
     this(qualifiers, List.of(), lastElement, false);
   }
@@ -174,38 +174,70 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
    *
    * @exception NullPointerException if any parameter is {@code null}
    */
-  public Path(final Qualifiers<String, Constable> qualifiers,
+  public Path(final Qualifiers<? extends String, ? extends Constable> qualifiers,
               final List<? extends Element<? extends Constable, ? extends Constable>> elements,
               final Element<? extends Constable, ? extends T> lastElement) {
     this(qualifiers, elements, lastElement, false);
   }
 
-  private Path(final Qualifiers<String, Constable> qualifiers,
+  @SuppressWarnings("unchecked")
+  private Path(final Qualifiers<? extends String, ? extends Constable> qualifiers,
                final List<? extends Element<? extends Constable, ? extends Constable>> elements,
                final Element<? extends Constable, ? extends T> lastElement,
                final boolean transliterated) {
     super();
-    final Map<String, Constable> pathQualifiers = new TreeMap<>(qualifiers.toMap());
     final int size = elements.size();
     if (size > 0) {
+      Map<String, Constable> pathQualifiers = null;
       final List<Element<? extends Constable, ? extends Constable>> newList = new ArrayList<>(size + 1);
-      final StringBuilder prefix = new StringBuilder();
+      StringBuilder prefix = null;
       for (int i = 0; i < size; i++) {
         final Element<? extends Constable, ? extends Constable> e = elements.get(i);
         newList.add(e);
-        prefix.append(e.name()).append(PREFIX_SEPARATOR_CHAR);
-        final String finalPrefix = prefix.toString();
-        pathQualifiers.putAll(e.qualifiers().withPrefix(k -> finalPrefix + PREFIX_SEPARATOR + k).toMap());
+        final Qualifiers<String, ? extends Constable> eQualifiers = e.qualifiers();
+        if (!eQualifiers.isEmpty()) {
+          if (prefix == null) {
+            prefix = new StringBuilder();
+          }
+          if (pathQualifiers == null) {
+            pathQualifiers = new TreeMap<>(qualifiers.toMap());
+          }
+          prefix.append(e.name()).append(PREFIX_SEPARATOR_CHAR);
+          final String finalPrefix = prefix.toString();
+          pathQualifiers.putAll(eQualifiers.withPrefix(k -> finalPrefix + PREFIX_SEPARATOR + k).toMap());
+        }
       }
       newList.add(lastElement);
-      final String finalPrefix = prefix.append(lastElement.name()).toString();
-      pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> finalPrefix + PREFIX_SEPARATOR + k).toMap());
       this.elements = Collections.unmodifiableList(newList);
+      final Qualifiers<? extends String, ? extends Constable> lastElementQualifiers = lastElement.qualifiers();
+      if (lastElementQualifiers.isEmpty()) {
+        if (pathQualifiers == null) {
+          this.qualifiers = (Qualifiers<String, Constable>)qualifiers;
+        } else {
+          this.qualifiers = new Qualifiers<>(pathQualifiers);
+        }
+      } else {
+        if (prefix == null) {
+          prefix = new StringBuilder();
+        }
+        if (pathQualifiers == null) {
+          pathQualifiers = new TreeMap<>(qualifiers.toMap());
+        }
+        final String finalPrefix = prefix.append(lastElement.name()).toString();
+        pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> finalPrefix + PREFIX_SEPARATOR + k).toMap());
+        this.qualifiers = new Qualifiers<>(pathQualifiers);
+      }
     } else {
-      pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> lastElement.name() + PREFIX_SEPARATOR + k).toMap());
       this.elements = List.of(lastElement);
+      final Qualifiers<String, ? extends Constable> lastElementQualifiers = lastElement.qualifiers();
+      if (lastElementQualifiers.isEmpty()) {
+        this.qualifiers = (Qualifiers<String, Constable>)qualifiers;
+      } else {
+        final Map<String, Constable> pathQualifiers = new TreeMap<>(qualifiers.toMap());
+        pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> lastElement.name() + PREFIX_SEPARATOR + k).toMap());
+        this.qualifiers = new Qualifiers<>(pathQualifiers);
+      }
     }
-    this.qualifiers = new Qualifiers<>(pathQualifiers);
     this.transliterated = transliterated;
   }
 
@@ -876,6 +908,11 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
    * {@linkplain #name() name}, and an optional {@linkplain
    * #qualified() thing that it designates or points to}.
    *
+   * @param <V> the type borne by values in the {@link Element}'s
+   * associated {@link Qualifiers}; often {@link String}
+   *
+   * @param <T> the type of this {@link Element}
+   *
    * @author <a href="https://about.me/lairdnelson"
    * target="_parent">Laird Nelson</a>
    */
@@ -952,6 +989,37 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
      */
     public Element(final T qualified, final String name) {
       this(Qualifiers.of(), qualified, name);
+    }
+
+    /**
+     * Creates a new {@link Element}.
+     *
+     * @param qualifiers the {@link Qualifiers} qualifying this {@link
+     * Element}; may be {@code null} in which case an {@linkplain
+     * Qualifiers#of() empty <code>Qualifiers</code>} will be used
+     * instead
+     *
+     * @param name the name of this {@link Element}; may be {@code
+     * null} only if {@code qualified} is not {@code null}
+     *
+     * @exception NullPointerException if {@code name} is {@code null}
+     *
+     * @exception IllegalArgumentException if {@code name} {@linkplain
+     * String#isEmpty() is empty}
+     *
+     * @see #Element(Qualifiers, Constable, String)
+     */
+    public Element(final Qualifiers<String, V> qualifiers, final String name) {
+      super();
+      if (name == null) {
+        throw new NullPointerException("name");
+      } else if (name.isEmpty()) {
+        throw new IllegalArgumentException("An empty name may not be paired with a null qualified");
+      } else {
+        this.name = name;
+      }
+      this.qualifiers = qualifiers == null || qualifiers.isEmpty() ? Qualifiers.of() : qualifiers;
+      this.qualified = null;
     }
 
     /**
@@ -1258,6 +1326,121 @@ public final class Path<T extends Constable> implements Iterable<Path.Element<? 
      */
     public static final Element<? extends Constable, ? extends Constable> root() {
       return ROOT;
+    }
+
+    /**
+     * Returns a {@link Element} representing the supplied arguments.
+     *
+     * <p>The returned {@link Element} may be newly created or it may
+     * be cached.  No assumption must be made about its identity.</p>
+     *
+     * @param <V> the type borne by values in the {@link Element}'s
+     * associated {@link Qualifiers}; often {@link String}
+     *
+     * @param <T> the type of this {@link Element}
+     *
+     * @param qualifiers the {@link Qualifiers} qualifying this {@link
+     * Element}; may be {@code null} in which case an {@linkplain
+     * Qualifiers#of() empty <code>Qualifiers</code>} will be used
+     * instead
+     *
+     * @param qualified the thing this {@link Element} describes; may
+     * be {@code null}
+     *
+     * @param name the name of this {@link Element}; may be {@code
+     * null} only if {@code qualified} is not {@code null}
+     *
+     * @return a {@link Element} representing the supplied arguments
+     *
+     * @exception NullPointerException if {@code qualified} is {@code
+     * null} and {@code name} is {@code null}
+     *
+     * @exception IllegalArgumentException if {@code qualified} is
+     * {@code null} and {@code name} {@linkplain String#isEmpty() is
+     * empty}
+     *
+     * @nullability This method never returns {@code null}.
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    public static final <V extends Constable, T extends Constable> Element<V, T> of(final Qualifiers<String, V> qualifiers,
+                                                                                    final T qualified,
+                                                                                    final String name) {
+      return new Element<>(qualifiers, qualified, name);
+    }
+
+    /**
+     * Returns a {@link Element} representing the supplied arguments.
+     *
+     * <p>The returned {@link Element} may be newly created or it may
+     * be cached.  No assumption must be made about its identity.</p>
+     *
+     * @param <V> the type borne by values in the {@link Element}'s
+     * associated {@link Qualifiers}; often {@link String}
+     *
+     * @param <T> the type of this {@link Element}
+     *
+     * @param qualified the thing this {@link Element} describes; may
+     * be {@code null}
+     *
+     * @param name the name of this {@link Element}; may be {@code
+     * null} only if {@code qualified} is not {@code null}
+     *
+     * @return a {@link Element} representing the supplied arguments
+     *
+     * @exception NullPointerException if {@code qualified} is {@code
+     * null} and {@code name} is {@code null}
+     *
+     * @exception IllegalArgumentException if {@code qualified} is
+     * {@code null} and {@code name} {@linkplain String#isEmpty() is
+     * empty}
+     *
+     * @nullability This method never returns {@code null}.
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    public static final <V extends Constable, T extends Constable> Element<V, T> of(final T qualified, final String name) {
+      return new Element<>(qualified, name);
+    }
+
+    /**
+     * Returns a {@link Element} representing the supplied arguments.
+     *
+     * <p>The returned {@link Element} may be newly created or it may
+     * be cached.  No assumption must be made about its identity.</p>
+     *
+     * @param <V> the type borne by values in the {@link Element}'s
+     * associated {@link Qualifiers}; often {@link String}
+     *
+     * @param <T> the type of this {@link Element}
+     *
+     * @param name the name of this {@link Element}; may be {@code
+     * null} only if {@code qualified} is not {@code null}
+     *
+     * @return a {@link Element} representing the supplied arguments
+     *
+     * @exception NullPointerException if {@code qualified} is {@code
+     * null} and {@code name} is {@code null}
+     *
+     * @exception IllegalArgumentException if {@code qualified} is
+     * {@code null} and {@code name} {@linkplain String#isEmpty() is
+     * empty}
+     *
+     * @nullability This method never returns {@code null}.
+     *
+     * @idempotency This method is idempotent and deterministic.
+     *
+     * @threadsafety This method is safe for concurrent use by
+     * multiple threads.
+     */
+    public static final <V extends Constable, T extends Constable> Element<V, T> of(final String name) {
+      return new Element<>(name);
     }
 
   }
