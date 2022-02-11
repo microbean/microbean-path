@@ -1381,7 +1381,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public static final Element<? extends Constable, ? extends Constable> root() {
+    public static final Element<? extends Constable, ?> root() {
       return ROOT;
     }
 
@@ -1462,7 +1462,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public static final <V extends Constable, T extends Constable> Element<V, T> of(final T qualified, final String name) {
+    public static final <V extends Constable, T> Element<V, T> of(final T qualified, final String name) {
       return new Element<>(qualified, name);
     }
 
@@ -1496,7 +1496,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public static final <V extends Constable, T extends Constable> Element<V, T> of(final String name) {
+    public static final <V extends Constable, T> Element<V, T> of(final String name) {
       return new Element<>(name);
     }
 
