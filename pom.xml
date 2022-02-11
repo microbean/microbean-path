@@ -14,7 +14,7 @@
   </parent>
 
   <name>microBean™ Path</name>
-  <description>${project.name}</description>
+  <description>microBean™ Path: selectors for Java objects</description>
   <inceptionYear>2022</inceptionYear>
   <url>https://microbean.github.io/${project.artifactId}</url>
 
