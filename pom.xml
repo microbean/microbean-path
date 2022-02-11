@@ -16,12 +16,12 @@
   <name>microBean™ Path</name>
   <description>microBean™ Path: selectors for Java objects</description>
   <inceptionYear>2022</inceptionYear>
-  <url>https://microbean.github.io/${project.artifactId}</url>
+  <url>https://microbean.github.io/microbean-path</url>
 
   <scm>
-    <connection>scm:git:git@github.com:microbean/${project.artifactId}.git</connection>
-    <developerConnection>scm:git:git@github.com:microbean/${project.artifactId}.git</developerConnection>
-    <url>https://github.com/microbean/${project.artifactId}/</url>
+    <connection>scm:git:git@github.com:microbean/microbean-path.git</connection>
+    <developerConnection>scm:git:git@github.com:microbean/microbean-path.git</developerConnection>
+    <url>https://github.com/microbean/microbean-path/</url>
     <tag>HEAD</tag>
   </scm>
 
@@ -56,7 +56,7 @@
       <dependency>
         <groupId>org.microbean</groupId>
         <artifactId>microbean-qualifier</artifactId>
-        <version>0.0.8</version>
+        <version>0.0.10</version>
         <type>jar</type>
       </dependency>
 
