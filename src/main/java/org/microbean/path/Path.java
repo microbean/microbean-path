@@ -908,16 +908,16 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
     final List<Element<Object, Object>> elements;
     switch (lastIndex) {
     case -1:
-      return new Path<>(Qualifiers.of(), List.of(), new Element<>(qualified, null));
+      return new Path<>(Qualifiers.of(), List.of(), Element.of(qualified, null));
     case 0:
-      return new Path<>(Qualifiers.of(), List.of(), new Element<>(qualified, names.get(0)));
+      return new Path<>(Qualifiers.of(), List.of(), Element.of(qualified, names.get(0)));
     default:
       elements = new ArrayList<>(lastIndex);
       for (int i = 0; i < lastIndex; i++) {
         final String name = names.get(i);
-        elements.add(new Element<>(name));
+        elements.add(Element.of(name));
       }
-      return new Path<>(Qualifiers.of(), elements, new Element<>(qualified, names.get(lastIndex)));
+      return new Path<>(Qualifiers.of(), elements, Element.of(qualified, names.get(lastIndex)));
     }
   }
 
@@ -1268,9 +1268,9 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
       if (prefix == null || prefix.isEmpty()) {
         return this;
       }
-      return new Element<>(this.qualifiers().withPrefix(k -> prefix + k),
-                           this.qualified(),
-                           this.name());
+      return Element.of(this.qualifiers().withPrefix(k -> prefix + k),
+                        this.qualified(),
+                        this.name());
     }
 
     /**
