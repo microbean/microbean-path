@@ -43,11 +43,11 @@ final class TestPathQualification {
     final Path<Class<?>> p =
       new Path<>(Qualifiers.of("env", "test"),
                  new Element<>(Qualifiers.of("foo", "bar"), String.class, "c"));
-    final Qualifiers<String, Constable> pathQualifiers = p.qualifiers();
+    final Qualifiers<String, Object> pathQualifiers = p.qualifiers();
     assertNotNull(pathQualifiers);
-    final Iterator<Entry<String, Constable>> iterator = pathQualifiers.iterator();
+    final Iterator<? extends Entry<String, Object>> iterator = pathQualifiers.iterator();
     assertTrue(iterator.hasNext());
-    Entry<String, Constable> entry = iterator.next();
+    Entry<? extends String, ?> entry = iterator.next();
     assertTrue(iterator.hasNext());
     assertEquals("c.foo", entry.getKey());
     entry = iterator.next();
