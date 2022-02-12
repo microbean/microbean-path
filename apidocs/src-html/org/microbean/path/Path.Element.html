@@ -922,16 +922,16 @@
 <span class="source-line-no">908</span><span id="line-908">    final List&lt;Element&lt;Object, Object&gt;&gt; elements;</span>
 <span class="source-line-no">909</span><span id="line-909">    switch (lastIndex) {</span>
 <span class="source-line-no">910</span><span id="line-910">    case -1:</span>
-<span class="source-line-no">911</span><span id="line-911">      return new Path&lt;&gt;(Qualifiers.of(), List.of(), new Element&lt;&gt;(qualified, null));</span>
+<span class="source-line-no">911</span><span id="line-911">      return new Path&lt;&gt;(Qualifiers.of(), List.of(), Element.of(qualified, null));</span>
 <span class="source-line-no">912</span><span id="line-912">    case 0:</span>
-<span class="source-line-no">913</span><span id="line-913">      return new Path&lt;&gt;(Qualifiers.of(), List.of(), new Element&lt;&gt;(qualified, names.get(0)));</span>
+<span class="source-line-no">913</span><span id="line-913">      return new Path&lt;&gt;(Qualifiers.of(), List.of(), Element.of(qualified, names.get(0)));</span>
 <span class="source-line-no">914</span><span id="line-914">    default:</span>
 <span class="source-line-no">915</span><span id="line-915">      elements = new ArrayList&lt;&gt;(lastIndex);</span>
 <span class="source-line-no">916</span><span id="line-916">      for (int i = 0; i &lt; lastIndex; i++) {</span>
 <span class="source-line-no">917</span><span id="line-917">        final String name = names.get(i);</span>
-<span class="source-line-no">918</span><span id="line-918">        elements.add(new Element&lt;&gt;(name));</span>
+<span class="source-line-no">918</span><span id="line-918">        elements.add(Element.of(name));</span>
 <span class="source-line-no">919</span><span id="line-919">      }</span>
-<span class="source-line-no">920</span><span id="line-920">      return new Path&lt;&gt;(Qualifiers.of(), elements, new Element&lt;&gt;(qualified, names.get(lastIndex)));</span>
+<span class="source-line-no">920</span><span id="line-920">      return new Path&lt;&gt;(Qualifiers.of(), elements, Element.of(qualified, names.get(lastIndex)));</span>
 <span class="source-line-no">921</span><span id="line-921">    }</span>
 <span class="source-line-no">922</span><span id="line-922">  }</span>
 <span class="source-line-no">923</span><span id="line-923"></span>
@@ -1282,9 +1282,9 @@
 <span class="source-line-no">1268</span><span id="line-1268">      if (prefix == null || prefix.isEmpty()) {</span>
 <span class="source-line-no">1269</span><span id="line-1269">        return this;</span>
 <span class="source-line-no">1270</span><span id="line-1270">      }</span>
-<span class="source-line-no">1271</span><span id="line-1271">      return new Element&lt;&gt;(this.qualifiers().withPrefix(k -&gt; prefix + k),</span>
-<span class="source-line-no">1272</span><span id="line-1272">                           this.qualified(),</span>
-<span class="source-line-no">1273</span><span id="line-1273">                           this.name());</span>
+<span class="source-line-no">1271</span><span id="line-1271">      return Element.of(this.qualifiers().withPrefix(k -&gt; prefix + k),</span>
+<span class="source-line-no">1272</span><span id="line-1272">                        this.qualified(),</span>
+<span class="source-line-no">1273</span><span id="line-1273">                        this.name());</span>
 <span class="source-line-no">1274</span><span id="line-1274">    }</span>
 <span class="source-line-no">1275</span><span id="line-1275"></span>
 <span class="source-line-no">1276</span><span id="line-1276">    /**</span>
