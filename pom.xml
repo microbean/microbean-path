@@ -56,7 +56,7 @@
       <dependency>
         <groupId>org.microbean</groupId>
         <artifactId>microbean-qualifier</artifactId>
-        <version>0.0.10</version>
+        <version>0.0.11</version>
         <type>jar</type>
       </dependency>
 

@@ -89,7 +89,7 @@ import static org.microbean.qualifier.ConstantDescs.CD_Qualifiers;
  *
  * @see Path.Element
  */
-public final class Path<T> implements Iterable<Path.Element<? extends Constable, ?>>, Qualified<String, Constable, T> {
+public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<String, Object, T> {
 
 
   /*
@@ -99,7 +99,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
 
   private static final StackWalker stackWalker = StackWalker.getInstance();
 
-  private static final Path<? extends Constable> ROOT = new Path<>();
+  private static final Path<?> ROOT = new Path<>();
 
   private static final char PREFIX_SEPARATOR_CHAR = '.';
 
@@ -111,7 +111,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    */
 
 
-  private final Qualifiers<String, Constable> qualifiers;
+  private final Qualifiers<String, Object> qualifiers;
 
   private final List<Element<?, ?>> elements;
 
@@ -126,7 +126,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
   // For use by ROOT only.
   @SuppressWarnings("unchecked")
   private Path() {
-    this(Qualifiers.of(), List.of(), (Element<? extends Constable, T>)Element.root(), true);
+    this(Qualifiers.of(), List.of(), (Element<?, T>)Element.root(), true);
   }
 
   /**
@@ -139,7 +139,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    *
    * @see #Path(Qualifiers, List, Element)
    */
-  public Path(final Element<? extends Constable, ? extends T> lastElement) {
+  public Path(final Element<?, ? extends T> lastElement) {
     this(Qualifiers.of(), List.of(), lastElement, false);
   }
 
@@ -156,8 +156,8 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    *
    * @see #Path(Qualifiers, List, Element)
    */
-  public Path(final Qualifiers<? extends String, ? extends Constable> qualifiers,
-              final Element<? extends Constable, ? extends T> lastElement) {
+  public Path(final Qualifiers<? extends String, ?> qualifiers,
+              final Element<?, ? extends T> lastElement) {
     this(qualifiers, List.of(), lastElement, false);
   }
 
@@ -176,27 +176,27 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    *
    * @exception NullPointerException if any parameter is {@code null}
    */
-  public Path(final Qualifiers<? extends String, ? extends Constable> qualifiers,
-              final List<? extends Element<? extends Constable, ?>> elements,
-              final Element<? extends Constable, ? extends T> lastElement) {
+  public Path(final Qualifiers<? extends String, ?> qualifiers,
+              final List<? extends Element<?, ?>> elements,
+              final Element<?, ? extends T> lastElement) {
     this(qualifiers, elements, lastElement, false);
   }
 
   @SuppressWarnings("unchecked")
-  private Path(final Qualifiers<? extends String, ? extends Constable> qualifiers,
-               final List<? extends Element<? extends Constable, ?>> elements,
-               final Element<? extends Constable, ? extends T> lastElement,
+  private Path(final Qualifiers<? extends String, ?> qualifiers,
+               final List<? extends Element<?, ?>> elements,
+               final Element<?, ? extends T> lastElement,
                final boolean transliterated) {
     super();
     final int size = elements.size();
     if (size > 0) {
-      Map<String, Constable> pathQualifiers = null;
-      final List<Element<? extends Constable, ?>> newList = new ArrayList<>(size + 1);
+      Map<String, Object> pathQualifiers = null;
+      final List<Element<?, ?>> newList = new ArrayList<>(size + 1);
       StringBuilder prefix = null;
       for (int i = 0; i < size; i++) {
-        final Element<? extends Constable, ?> e = elements.get(i);
+        final Element<?, ?> e = elements.get(i);
         newList.add(e);
-        final Qualifiers<String, ? extends Constable> eQualifiers = e.qualifiers();
+        final Qualifiers<String, ?> eQualifiers = e.qualifiers();
         if (!eQualifiers.isEmpty()) {
           if (prefix == null) {
             prefix = new StringBuilder();
@@ -211,10 +211,10 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
       }
       newList.add(lastElement);
       this.elements = Collections.unmodifiableList(newList);
-      final Qualifiers<? extends String, ? extends Constable> lastElementQualifiers = lastElement.qualifiers();
+      final Qualifiers<? extends String, ?> lastElementQualifiers = lastElement.qualifiers();
       if (lastElementQualifiers.isEmpty()) {
         if (pathQualifiers == null) {
-          this.qualifiers = (Qualifiers<String, Constable>)qualifiers;
+          this.qualifiers = (Qualifiers<String, Object>)qualifiers;
         } else {
           this.qualifiers = new Qualifiers<>(pathQualifiers);
         }
@@ -231,11 +231,11 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
       }
     } else {
       this.elements = List.of(lastElement);
-      final Qualifiers<String, ? extends Constable> lastElementQualifiers = lastElement.qualifiers();
+      final Qualifiers<String, ?> lastElementQualifiers = lastElement.qualifiers();
       if (lastElementQualifiers.isEmpty()) {
-        this.qualifiers = (Qualifiers<String, Constable>)qualifiers;
+        this.qualifiers = (Qualifiers<String, Object>)qualifiers;
       } else {
-        final Map<String, Constable> pathQualifiers = new TreeMap<>(qualifiers.toMap());
+        final Map<String, Object> pathQualifiers = new TreeMap<>(qualifiers.toMap());
         pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> lastElement.name() + PREFIX_SEPARATOR + k).toMap());
         this.qualifiers = new Qualifiers<>(pathQualifiers);
       }
@@ -302,7 +302,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    */
   @Experimental
   @SuppressWarnings("unchecked")
-  public final Path<T> transliterate(final BiFunction<? super String, ? super Element<? extends Constable, ?>, ? extends Element<? extends Constable, ?>> f) {
+  public final Path<T> transliterate(final BiFunction<? super String, ? super Element<?, ?>, ? extends Element<?, ?>> f) {
     if (this.transliterated()) {
       return this;
     } else {
@@ -312,18 +312,18 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
         return
           new Path<T>(this.qualifiers(),
                       this.elements.subList(0, lastIndex),
-                      (Element<? extends Constable, ? extends T>)this.elements.get(lastIndex),
+                      (Element<?, ? extends T>)this.elements.get(lastIndex),
                       true);
       } else {
         final String userPackageName = stackWalker.walk(Path::findUserPackageName);
-        final List<Element<? extends Constable, ?>> newElements = new ArrayList<>(lastIndex);
+        final List<Element<?, ?>> newElements = new ArrayList<>(lastIndex);
         for (int i = 0; i < lastIndex; i++) {
           newElements.add(f.apply(userPackageName, this.elements.get(i)));
         }
         return
           new Path<T>(this.qualifiers(),
                       newElements,
-                      (Element<? extends Constable, ? extends T>)f.apply(userPackageName, this.elements.get(lastIndex)),
+                      (Element<?, ? extends T>)f.apply(userPackageName, this.elements.get(lastIndex)),
                       true);
       }
     }
@@ -404,8 +404,8 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  @Override // Qualified<String, Constable, T>
-  public final Qualifiers<String, Constable> qualifiers() {
+  @Override // Qualified<String, Object, T>
+  public final Qualifiers<String, Object> qualifiers() {
     return this.qualifiers;
   }
 
@@ -425,8 +425,8 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  @Override // Iterable<Element<? extends Constable, ?>>
-  public final Iterator<Element<? extends Constable, ?>> iterator() {
+  @Override // Iterable<Element<?, ?>>
+  public final Iterator<Element<?, ?>> iterator() {
     return this.elements.iterator();
   }
 
@@ -446,8 +446,8 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  @Override // Iterable<Element<? extends Constable, ?>>
-  public final Spliterator<Element<? extends Constable, ?>> spliterator() {
+  @Override // Iterable<Element<?, ?>>
+  public final Spliterator<Element<?, ?>> spliterator() {
     return this.elements.spliterator();
   }
 
@@ -464,7 +464,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  public final Stream<Element<? extends Constable, ?>> stream() {
+  public final Stream<Element<?, ?>> stream() {
     return this.elements.stream();
   }
 
@@ -482,7 +482,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  public final Stream<Element<? extends Constable, ?>> parallelStream() {
+  public final Stream<Element<?, ?>> parallelStream() {
     return this.elements.parallelStream();
   }
 
@@ -514,8 +514,8 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    * threads.
    */
   @SuppressWarnings("unchecked")
-  public final Element<? extends Constable, T> lastElement() {
-    return (Element<? extends Constable, T>)this.elements.get(this.size() - 1);
+  public final Element<?, T> lastElement() {
+    return (Element<?, T>)this.elements.get(this.size() - 1);
   }
 
   /**
@@ -534,7 +534,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  @Override // Qualified<String, Constable, T>
+  @Override // Qualified<String, Object, T>
   public final T qualified() {
     return this.lastElement().qualified();
   }
@@ -648,7 +648,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  public final <U extends Constable> Path<U> plus(final Element<? extends Constable, ? extends U> element) {
+  public final <U> Path<U> plus(final Element<?, ? extends U> element) {
     return new Path<>(this.qualifiers(), this.elements, element);
   }
 
@@ -681,10 +681,9 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  public final <U extends Constable> Path<U> plus(final Collection<? extends Element<? extends Constable,
-                                                                                     ? extends Constable>> elements,
-                                                  final Element<? extends Constable, ? extends U> lastElement) {
-    final List<Element<? extends Constable, ? extends Constable>> newElements = new ArrayList<>(this.size() + elements.size());
+  public final <U> Path<U> plus(final Collection<? extends Element<?, ?>> elements,
+                                final Element<?, ? extends U> lastElement) {
+    final List<Element<?, ?>> newElements = new ArrayList<>(this.size() + elements.size());
     newElements.addAll(elements);
     return new Path<>(this.qualifiers(), newElements, lastElement);
   }
@@ -727,9 +726,9 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    * threads.
    */
   @SuppressWarnings("unchecked")
-  public final <U extends Constable> Path<U> plus(final Path<? extends U> path) {
+  public final <U> Path<U> plus(final Path<? extends U> path) {
     final int pathSize = path.size();
-    final List<Element<? extends Constable, ?>> newElements = new ArrayList<>(this.size() + pathSize);
+    final List<Element<?, ?>> newElements = new ArrayList<>(this.size() + pathSize);
     newElements.addAll(this.elements);
     final int lastIndex = pathSize - 1;
     for (int i = 0; i < lastIndex; i++) {
@@ -739,7 +738,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
     return
       new Path<>(path.qualifiers().withPrefix(k -> prefix + k),
                  newElements,
-                 (Element<? extends Constable, ? extends U>)path.elements.get(lastIndex));
+                 (Element<?, ? extends U>)path.elements.get(lastIndex));
   }
 
   private final String prefix() {
@@ -772,7 +771,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    *
    * @see #isRoot()
    */
-  public static final Path<? extends Constable> root() {
+  public static final Path<?> root() {
     return ROOT;
   }
 
@@ -906,7 +905,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    */
   public static final <T> Path<T> of(final T qualified, final List<? extends String> names) {
     final int lastIndex = names.size() - 1;
-    final List<Element<Constable, Constable>> elements;
+    final List<Element<Object, Object>> elements;
     switch (lastIndex) {
     case -1:
       return new Path<>(Qualifiers.of(), List.of(), new Element<>(qualified, null));
@@ -963,7 +962,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
    * @author <a href="https://about.me/lairdnelson"
    * target="_parent">Laird Nelson</a>
    */
-  public static final class Element<V extends Constable, T> implements Qualified<String, V, T> {
+  public static final class Element<V, T> implements Qualified<String, V, T> {
 
 
     /*
@@ -971,7 +970,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
      */
 
 
-    private static final Element<? extends Constable, ? extends Constable> ROOT = new Element<>();
+    private static final Element<?, ?> ROOT = new Element<>();
 
 
     /*
@@ -1381,7 +1380,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public static final Element<? extends Constable, ?> root() {
+    public static final Element<?, ?> root() {
       return ROOT;
     }
 
@@ -1423,9 +1422,9 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public static final <V extends Constable, T> Element<V, T> of(final Qualifiers<String, V> qualifiers,
-                                                                  final T qualified,
-                                                                  final String name) {
+    public static final <V, T> Element<V, T> of(final Qualifiers<String, V> qualifiers,
+                                                final T qualified,
+                                                final String name) {
       return new Element<>(qualifiers, qualified, name);
     }
 
@@ -1462,7 +1461,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public static final <V extends Constable, T> Element<V, T> of(final T qualified, final String name) {
+    public static final <V, T> Element<V, T> of(final T qualified, final String name) {
       return new Element<>(qualified, name);
     }
 
@@ -1496,7 +1495,7 @@ public final class Path<T> implements Iterable<Path.Element<? extends Constable,
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public static final <V extends Constable, T> Element<V, T> of(final String name) {
+    public static final <V, T> Element<V, T> of(final String name) {
       return new Element<>(name);
     }
 

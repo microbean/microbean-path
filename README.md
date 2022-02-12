@@ -32,7 +32,7 @@ as a Maven dependency:
   <groupId>org.microbean</groupId>
   <artifactId>microbean-path</artifactId>
   <!-- Always check https://search.maven.org/artifact/org.microbean/microbean-path for up-to-date available versions. -->
-  <version>0.0.5</version>
+  <version>0.0.6</version>
 </dependency>
 ```
 
