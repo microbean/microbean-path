@@ -16,11 +16,6 @@
  */
 package org.microbean.path;
 
-import java.lang.constant.Constable;
-import java.lang.constant.ConstantDesc;
-
-import java.lang.invoke.MethodHandles;
-
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -43,15 +38,9 @@ final class TestConstableSemantics {
   @Test
   final void testConstableSemantics() throws ReflectiveOperationException {
     final Path<String> p =
-      new Path<String>(Qualifiers.of("env", "test"),
-                       List.<Element<Constable, String>>of(new Element<Constable, String>(Qualifiers.of(), "a", "a"),
-                                                           new Element<Constable, String>(Qualifiers.of(), "b", "b")),
-                       new Element<Constable, String>(Qualifiers.of(), "c", "c"));
+      new Path<>(Qualifiers.of("env", "test"), List.of(Element.of("a", "a"), Element.of("b", "b")), Element.of("c", "c"));
     assertEquals(p,
-                 p.describeConstable()
-                 .orElseThrow()
-                 .resolveConstantDesc(privateLookupIn(Path.class,
-                                                      lookup())));
+                 p.describeConstable().orElseThrow().resolveConstantDesc(privateLookupIn(Path.class, lookup())));
   }
-  
+
 }
