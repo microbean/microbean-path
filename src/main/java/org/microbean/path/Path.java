@@ -89,7 +89,7 @@ import static org.microbean.qualifier.ConstantDescs.CD_Qualifiers;
  *
  * @see Path.Element
  */
-public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<String, Object, T> {
+public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<String, Object, T> {
 
 
   /*
@@ -113,7 +113,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
 
   private final Qualifiers<String, Object> qualifiers;
 
-  private final List<Element<?, ?>> elements;
+  private final List<Element<?>> elements;
 
   private final boolean transliterated;
 
@@ -126,7 +126,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
   // For use by ROOT only.
   @SuppressWarnings("unchecked")
   private Path() {
-    this(Qualifiers.of(), List.of(), (Element<?, T>)Element.root(), true);
+    this(Qualifiers.of(), List.of(), (Element<T>)Element.root(), true);
   }
 
   /**
@@ -139,7 +139,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    *
    * @see #Path(Qualifiers, List, Element)
    */
-  public Path(final Element<?, ? extends T> lastElement) {
+  public Path(final Element<? extends T> lastElement) {
     this(Qualifiers.of(), List.of(), lastElement, false);
   }
 
@@ -157,7 +157,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * @see #Path(Qualifiers, List, Element)
    */
   public Path(final Qualifiers<? extends String, ?> qualifiers,
-              final Element<?, ? extends T> lastElement) {
+              final Element<? extends T> lastElement) {
     this(qualifiers, List.of(), lastElement, false);
   }
 
@@ -177,26 +177,26 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * @exception NullPointerException if any parameter is {@code null}
    */
   public Path(final Qualifiers<? extends String, ?> qualifiers,
-              final List<? extends Element<?, ?>> elements,
-              final Element<?, ? extends T> lastElement) {
+              final List<? extends Element<?>> elements,
+              final Element<? extends T> lastElement) {
     this(qualifiers, elements, lastElement, false);
   }
 
   @SuppressWarnings("unchecked")
   private Path(final Qualifiers<? extends String, ?> qualifiers,
-               final List<? extends Element<?, ?>> elements,
-               final Element<?, ? extends T> lastElement,
+               final List<? extends Element<?>> elements,
+               final Element<? extends T> lastElement,
                final boolean transliterated) {
     super();
     final int size = elements.size();
     if (size > 0) {
       Map<String, Object> pathQualifiers = null;
-      final List<Element<?, ?>> newList = new ArrayList<>(size + 1);
+      final List<Element<?>> newList = new ArrayList<>(size + 1);
       StringBuilder prefix = null;
       for (int i = 0; i < size; i++) {
-        final Element<?, ?> e = elements.get(i);
+        final Element<?> e = elements.get(i);
         newList.add(e);
-        final Qualifiers<String, ?> eQualifiers = e.qualifiers();
+        final Qualifiers<? extends String, ?> eQualifiers = e.qualifiers();
         if (!eQualifiers.isEmpty()) {
           if (prefix == null) {
             prefix = new StringBuilder();
@@ -206,7 +206,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
           }
           prefix.append(e.name()).append(PREFIX_SEPARATOR_CHAR);
           final String finalPrefix = prefix.toString();
-          pathQualifiers.putAll(eQualifiers.withPrefix(k -> finalPrefix + PREFIX_SEPARATOR + k).toMap());
+          pathQualifiers.putAll(((Qualifiers<String, Object>)eQualifiers).withPrefix(k -> finalPrefix + PREFIX_SEPARATOR + k).toMap());
         }
       }
       newList.add(lastElement);
@@ -231,7 +231,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
       }
     } else {
       this.elements = List.of(lastElement);
-      final Qualifiers<String, ?> lastElementQualifiers = lastElement.qualifiers();
+      final Qualifiers<? extends String, ?> lastElementQualifiers = lastElement.qualifiers();
       if (lastElementQualifiers.isEmpty()) {
         this.qualifiers = (Qualifiers<String, Object>)qualifiers;
       } else {
@@ -302,7 +302,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    */
   @Experimental
   @SuppressWarnings("unchecked")
-  public final Path<T> transliterate(final BiFunction<? super String, ? super Element<?, ?>, ? extends Element<?, ?>> f) {
+  public final Path<T> transliterate(final BiFunction<? super String, ? super Element<?>, ? extends Element<?>> f) {
     if (this.transliterated()) {
       return this;
     } else {
@@ -312,18 +312,18 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
         return
           new Path<T>(this.qualifiers(),
                       this.elements.subList(0, lastIndex),
-                      (Element<?, ? extends T>)this.elements.get(lastIndex),
+                      (Element<? extends T>)this.elements.get(lastIndex),
                       true);
       } else {
         final String userPackageName = stackWalker.walk(Path::findUserPackageName);
-        final List<Element<?, ?>> newElements = new ArrayList<>(lastIndex);
+        final List<Element<?>> newElements = new ArrayList<>(lastIndex);
         for (int i = 0; i < lastIndex; i++) {
           newElements.add(f.apply(userPackageName, this.elements.get(i)));
         }
         return
           new Path<T>(this.qualifiers(),
                       newElements,
-                      (Element<?, ? extends T>)f.apply(userPackageName, this.elements.get(lastIndex)),
+                      (Element<? extends T>)f.apply(userPackageName, this.elements.get(lastIndex)),
                       true);
       }
     }
@@ -425,8 +425,8 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  @Override // Iterable<Element<?, ?>>
-  public final Iterator<Element<?, ?>> iterator() {
+  @Override // Iterable<Element<?>>
+  public final Iterator<Element<?>> iterator() {
     return this.elements.iterator();
   }
 
@@ -446,8 +446,8 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  @Override // Iterable<Element<?, ?>>
-  public final Spliterator<Element<?, ?>> spliterator() {
+  @Override // Iterable<Element<?>>
+  public final Spliterator<Element<?>> spliterator() {
     return this.elements.spliterator();
   }
 
@@ -464,7 +464,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  public final Stream<Element<?, ?>> stream() {
+  public final Stream<Element<?>> stream() {
     return this.elements.stream();
   }
 
@@ -482,7 +482,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  public final Stream<Element<?, ?>> parallelStream() {
+  public final Stream<Element<?>> parallelStream() {
     return this.elements.parallelStream();
   }
 
@@ -514,8 +514,8 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * threads.
    */
   @SuppressWarnings("unchecked")
-  public final Element<?, T> lastElement() {
-    return (Element<?, T>)this.elements.get(this.size() - 1);
+  public final Element<T> lastElement() {
+    return (Element<T>)this.elements.get(this.size() - 1);
   }
 
   /**
@@ -648,7 +648,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  public final <U> Path<U> plus(final Element<?, ? extends U> element) {
+  public final <U> Path<U> plus(final Element<? extends U> element) {
     return new Path<>(this.qualifiers(), this.elements, element);
   }
 
@@ -681,9 +681,9 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * @threadsafety This method is safe for concurrent use by multiple
    * threads.
    */
-  public final <U> Path<U> plus(final Collection<? extends Element<?, ?>> elements,
-                                final Element<?, ? extends U> lastElement) {
-    final List<Element<?, ?>> newElements = new ArrayList<>(this.size() + elements.size());
+  public final <U> Path<U> plus(final Collection<? extends Element<?>> elements,
+                                final Element<? extends U> lastElement) {
+    final List<Element<?>> newElements = new ArrayList<>(this.size() + elements.size());
     newElements.addAll(elements);
     return new Path<>(this.qualifiers(), newElements, lastElement);
   }
@@ -728,7 +728,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
   @SuppressWarnings("unchecked")
   public final <U> Path<U> plus(final Path<? extends U> path) {
     final int pathSize = path.size();
-    final List<Element<?, ?>> newElements = new ArrayList<>(this.size() + pathSize);
+    final List<Element<?>> newElements = new ArrayList<>(this.size() + pathSize);
     newElements.addAll(this.elements);
     final int lastIndex = pathSize - 1;
     for (int i = 0; i < lastIndex; i++) {
@@ -738,12 +738,12 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
     return
       new Path<>(path.qualifiers().withPrefix(k -> prefix + k),
                  newElements,
-                 (Element<?, ? extends U>)path.elements.get(lastIndex));
+                 (Element<? extends U>)path.elements.get(lastIndex));
   }
 
   private final String prefix() {
     final StringBuilder prefix = new StringBuilder();
-    for (final Element<?, ?> e : this) {
+    for (final Element<?> e : this) {
       prefix.append(e.name()).append(PREFIX_SEPARATOR_CHAR);
     }
     return prefix.toString();
@@ -776,17 +776,17 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
   }
 
   /**
-   * Creates a new {@link Path} formed from an {@link Element} formed
-   * from the supplied {@code qualified} and an {@linkplain
-   * String#isEmpty() empty} {@linkplain Element#name() name}, and
-   * returns it.
+   * Returns a (<strong>usually new</strong>) {@link Path} formed from
+   * an {@link Element} formed from the supplied {@code qualified} and
+   * an {@linkplain String#isEmpty() empty} {@linkplain Element#name()
+   * name}.
    *
-   * @param <T> the type of the new {@link Path}
+   * @param <T> the type of the {@link Path}
    *
    * @param qualified the {@linkplain Element#qualified() qualified
    * item} of what will be the last {@link Element}
    *
-   * @return a new {@link Path}
+   * @return a {@link Path}
    *
    * @exception NullPointerException if {@code qualified} is {@code
    * null}
@@ -805,10 +805,11 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
   }
 
   /**
-   * Creates a new {@link Path} formed from an {@link Element} formed
-   * from the supplied {@code qualified} and the supplied name, and returns it.
+   * Returns a (<strong>usually new</strong>) {@link Path} formed from
+   * an {@link Element} formed from the supplied {@code qualified} and
+   * the supplied name.
    *
-   * @param <T> the type of the new {@link Path}
+   * @param <T> the type of the {@link Path}
    *
    * @param qualified the {@linkplain Element#qualified() qualified
    * item} of what will be the last {@link Element}
@@ -816,7 +817,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * @param name the {@linkplain Element#name() name} of what will be
    * the last {@link Element}
    *
-   * @return a new {@link Path}
+   * @return a {@link Path}
    *
    * @exception NullPointerException if {@code name} is {@code null}
    *
@@ -838,11 +839,11 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
   }
 
   /**
-   * Creates a new {@link Path} formed from {@link Element}s formed
-   * from the supplied {@code qualified} and the supplied array of
-   * {@linkplain Element#name() names}, and returns it.
+   * Returns a (<strong>usually new</strong>) {@link Path} formed from
+   * {@link Element}s formed from the supplied {@code qualified} and
+   * the supplied array of {@linkplain Element#name() names}.
    *
-   * @param <T> the type of the new {@link Path}
+   * @param <T> the type of the {@link Path}
    *
    * @param qualified the {@linkplain Element#qualified() qualified
    * item} of what will be the last {@link Element}
@@ -851,7 +852,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * which {@link Element}s will be synthesized; must not be {@code
    * null}
    *
-   * @return a new {@link Path}
+   * @return a {@link Path}
    *
    * @exception NullPointerException if {@code names} is {@code null}
    *
@@ -873,11 +874,11 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
   }
 
   /**
-   * Creates a new {@link Path} formed from {@link Element}s formed
-   * from the supplied {@code qualified} and the supplied {@link List}
-   * of {@linkplain Element#name() names}, and returns it.
+   * Returns a (<strong>usually new</strong>) {@link Path} formed from
+   * {@link Element}s formed from the supplied {@code qualified} and
+   * the supplied {@link List} of {@linkplain Element#name() names}.
    *
-   * @param <T> the type of the new {@link Path}
+   * @param <T> the type of the {@link Path}
    *
    * @param qualified the {@linkplain Element#qualified() qualified
    * item} of what will be the last {@link Element}
@@ -886,7 +887,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * from which {@link Element}s will be synthesized; must not be
    * {@code null}
    *
-   * @return a new {@link Path}
+   * @return a {@link Path}
    *
    * @exception NullPointerException if {@code names} is {@code null}
    *
@@ -905,7 +906,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    */
   public static final <T> Path<T> of(final T qualified, final List<? extends String> names) {
     final int lastIndex = names.size() - 1;
-    final List<Element<Object, Object>> elements;
+    final List<Element<Object>> elements;
     switch (lastIndex) {
     case -1:
       return new Path<>(Qualifiers.of(), List.of(), Element.of(qualified, null));
@@ -919,6 +920,72 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
       }
       return new Path<>(Qualifiers.of(), elements, Element.of(qualified, names.get(lastIndex)));
     }
+  }
+
+  /**
+   * Return a (<strong>usually new</strong>) {@link Path} formed from
+   * the supplied arguments and returns it.
+   *
+   * @param <T> the type of the {@link Path}
+   *
+   * @param pathQualifiers the {@link Path}'s {@link Qualifiers}; must
+   * not be {@code null}
+   *
+   * @param lastElement the {@linkplain #lastElement() last
+   * <code>Element</code>} of the {@link Path}; must not be {@code
+   * null}
+   *
+   * @return a (<strong>usually new</strong>) {@link Path}
+   *
+   * @exception NullPointerException if any argument is {@code null}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see #Path(Qualifiers, List, Element)
+   */
+  public static final <T> Path<T> of(final Qualifiers<? extends String, ?> pathQualifiers,
+                                     final Element<? extends T> lastElement) {
+    return new Path<>(pathQualifiers, lastElement);
+  }
+
+  /**
+   * Return a (<strong>usually new</strong>) {@link Path} formed from
+   * the supplied arguments and returns it.
+   *
+   * @param <T> the type of the new {@link Path}
+   *
+   * @param pathQualifiers the {@link Path}'s {@link Qualifiers}; must
+   * not be {@code null}
+   *
+   * @param elements the interior {@link Element}s of the {@link
+   * Path}; must not be {@code null}
+   *
+   * @param lastElement the {@linkplain #lastElement() last
+   * <code>Element</code>} of the {@link Path}; must not be {@code
+   * null}
+   *
+   * @return a (<strong>usually new</strong>) {@link Path}
+   *
+   * @exception NullPointerException if any argument is {@code null}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see #Path(Qualifiers, List, Element)
+   */
+  public static final <T> Path<T> of(final Qualifiers<? extends String, ?> pathQualifiers,
+                                     final List<? extends Element<?>> elements,
+                                     final Element<? extends T> lastElement) {
+    return new Path<>(pathQualifiers, elements, lastElement);
   }
 
   private static final String findUserPackageName(final Stream<StackFrame> stream) {
@@ -954,15 +1021,12 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
    * {@linkplain #name() name}, and an optional {@linkplain
    * #qualified() thing that it designates or points to}.
    *
-   * @param <V> the type borne by values in the {@link Element}'s
-   * associated {@link Qualifiers}; often {@link String}
-   *
    * @param <T> the type of this {@link Element}
    *
    * @author <a href="https://about.me/lairdnelson"
    * target="_parent">Laird Nelson</a>
    */
-  public static final class Element<V, T> implements Qualified<String, V, T> {
+  public static final class Element<T> implements Qualified<String, Object, T> {
 
 
     /*
@@ -970,7 +1034,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      */
 
 
-    private static final Element<?, ?> ROOT = new Element<>();
+    private static final Element<?> ROOT = new Element<>();
 
 
     /*
@@ -978,7 +1042,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      */
 
 
-    private final Qualifiers<String, V> qualifiers;
+    private final Qualifiers<String, Object> qualifiers;
 
     private final T qualified;
 
@@ -1055,7 +1119,8 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      *
      * @see #Element(Qualifiers, Object, String)
      */
-    public Element(final Qualifiers<String, V> qualifiers, final String name) {
+    @SuppressWarnings("unchecked")
+    public Element(final Qualifiers<? extends String, ?> qualifiers, final String name) {
       super();
       if (name == null) {
         throw new NullPointerException("name");
@@ -1064,7 +1129,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
       } else {
         this.name = name;
       }
-      this.qualifiers = qualifiers == null || qualifiers.isEmpty() ? Qualifiers.of() : qualifiers;
+      this.qualifiers = qualifiers == null || qualifiers.isEmpty() ? Qualifiers.of() : (Qualifiers<String, Object>)qualifiers;
       this.qualified = null;
     }
 
@@ -1089,7 +1154,8 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      * {@code null} and {@code name} {@linkplain String#isEmpty() is
      * empty}
      */
-    public Element(final Qualifiers<String, V> qualifiers, final T qualified, final String name) {
+    @SuppressWarnings("unchecked")
+    public Element(final Qualifiers<? extends String, ?> qualifiers, final T qualified, final String name) {
       super();
       if (qualified == null) {
         if (name == null) {
@@ -1102,7 +1168,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
       } else {
         this.name = name == null ? "" : name;
       }
-      this.qualifiers = qualifiers == null || qualifiers.isEmpty() ? Qualifiers.of() : qualifiers;
+      this.qualifiers = qualifiers == null || qualifiers.isEmpty() ? Qualifiers.of() : (Qualifiers<String, Object>)qualifiers;
       this.qualified = qualified;
     }
 
@@ -1185,8 +1251,8 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      * @threadsafety This method is safe for concurrent use by multiple
      * threads.
      */
-    @Override // Qualified<String, V, T>
-    public final Qualifiers<String, V> qualifiers() {
+    @Override // Qualified<String, Object, T>
+    public final Qualifiers<String, Object> qualifiers() {
       return this.qualifiers;
     }
 
@@ -1204,7 +1270,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    @Override // Qualified<K, V, T>
+    @Override // Qualified<String, Object, T>
     public final T qualified() {
       return this.qualified;
     }
@@ -1264,7 +1330,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public final Element<V, T> withQualifiersPrefix(final String prefix) {
+    public final Element<T> withQualifiersPrefix(final String prefix) {
       if (prefix == null || prefix.isEmpty()) {
         return this;
       }
@@ -1318,7 +1384,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
       if (this == other) {
         return true;
       } else if (other != null && this.getClass() == other.getClass()) {
-        final Element<?, ?> her = (Element<?, ?>)other;
+        final Element<?> her = (Element<?>)other;
         return
           Objects.equals(this.qualified(), her.qualified()) &&
           Objects.equals(this.name(), her.name()) &&
@@ -1380,7 +1446,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public static final Element<?, ?> root() {
+    public static final Element<?> root() {
       return ROOT;
     }
 
@@ -1389,9 +1455,6 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      *
      * <p>The returned {@link Element} may be newly created or it may
      * be cached.  No assumption must be made about its identity.</p>
-     *
-     * @param <V> the type borne by values in the {@link Element}'s
-     * associated {@link Qualifiers}; often {@link String}
      *
      * @param <T> the type of this {@link Element}
      *
@@ -1422,9 +1485,9 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public static final <V, T> Element<V, T> of(final Qualifiers<String, V> qualifiers,
-                                                final T qualified,
-                                                final String name) {
+    public static final <T> Element<T> of(final Qualifiers<? extends String, ?> qualifiers,
+                                          final T qualified,
+                                          final String name) {
       return new Element<>(qualifiers, qualified, name);
     }
 
@@ -1433,9 +1496,6 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      *
      * <p>The returned {@link Element} may be newly created or it may
      * be cached.  No assumption must be made about its identity.</p>
-     *
-     * @param <V> the type borne by values in the {@link Element}'s
-     * associated {@link Qualifiers}; often {@link String}
      *
      * @param <T> the type of this {@link Element}
      *
@@ -1461,7 +1521,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public static final <V, T> Element<V, T> of(final T qualified, final String name) {
+    public static final <T> Element<T> of(final T qualified, final String name) {
       return new Element<>(qualified, name);
     }
 
@@ -1470,9 +1530,6 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      *
      * <p>The returned {@link Element} may be newly created or it may
      * be cached.  No assumption must be made about its identity.</p>
-     *
-     * @param <V> the type borne by values in the {@link Element}'s
-     * associated {@link Qualifiers}; often {@link String}
      *
      * @param <T> the type of this {@link Element}
      *
@@ -1495,7 +1552,7 @@ public final class Path<T> implements Iterable<Path.Element<?, ?>>, Qualified<St
      * @threadsafety This method is safe for concurrent use by
      * multiple threads.
      */
-    public static final <V, T> Element<V, T> of(final String name) {
+    public static final <T> Element<T> of(final String name) {
       return new Element<>(name);
     }
 
