@@ -35,28 +35,28 @@
       <dependency>
         <groupId>org.microbean</groupId>
         <artifactId>microbean-development-annotations</artifactId>
-        <version>0.2.11</version>
+        <version>0.2.12</version>
         <type>jar</type>
       </dependency>
 
       <dependency>
         <groupId>org.microbean</groupId>
         <artifactId>microbean-constant</artifactId>
-        <version>0.0.2</version>
+        <version>0.0.3</version>
         <type>jar</type>
       </dependency>
 
       <dependency>
         <groupId>org.microbean</groupId>
         <artifactId>microbean-invoke</artifactId>
-        <version>0.0.2</version>
+        <version>0.0.4</version>
         <type>jar</type>
       </dependency>
 
       <dependency>
         <groupId>org.microbean</groupId>
         <artifactId>microbean-qualifier</artifactId>
-        <version>0.0.11</version>
+        <version>0.0.12</version>
         <type>jar</type>
       </dependency>
 
@@ -150,6 +150,7 @@
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
+            <argLine>--add-opens=org.microbean.path/org.microbean.path=ALL-UNNAMED</argLine>
             <!-- See https://junit.org/junit5/docs/snapshot/user-guide/#running-tests-build-maven-config-params -->
             <!-- See https://github.com/apache/maven-surefire/blob/eb48f1b59ca5ccf6954ef33ecab03dbaf93214cd/surefire-providers/surefire-junit-platform/src/main/java/org/apache/maven/surefire/junitplatform/JUnitPlatformProvider.java#L242-L262 -->
             <properties>
