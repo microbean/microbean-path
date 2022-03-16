@@ -875,6 +875,31 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
 
   /**
    * Returns a (<strong>usually new</strong>) {@link Path} formed from
+   * the supplied {@code lastElement}.
+   *
+   * @param <T> the type of the {@link Path}
+   *
+   * @param lastElement the last {@link Element}; must not be {@code
+   * null}
+   *
+   * @return a {@link Path}
+   *
+   * @exception NullPointerException if {@code lastElement} is {@code
+   * null}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  public static final <T> Path<T> of(final Element<? extends T> lastElement) {
+    return new Path<>(lastElement);
+  }
+
+  /**
+   * Returns a (<strong>usually new</strong>) {@link Path} formed from
    * {@link Element}s formed from the supplied {@code qualified} and
    * the supplied {@link List} of {@linkplain Element#name() names}.
    *
