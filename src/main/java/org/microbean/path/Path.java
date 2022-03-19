@@ -42,6 +42,7 @@ import java.util.Spliterator;
 import java.util.TreeMap;
 
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 
 import java.util.stream.Stream;
 
@@ -502,6 +503,119 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
   }
 
   /**
+   * Returns the zero-based index identifying the position of the
+   * first occurrence of a {@link Path} {@linkplain #equals(Object)
+   * equal to} the supplied {@link Path} within this {@link Path}, or
+   * a negative value if the supplied {@link Path} does not occur
+   * within this {@link Path}.
+   *
+   * @param other the other {@link Path}; must not be {@code null}
+   *
+   * @return the zero-based index identifying the position of the
+   * first occurrence of a {@link Path} {@linkplain #equals(Object)
+   * equal to} supplied {@link Path} within this {@link Path}, or a
+   * negative value if the supplied {@link Path} does not occur within
+   * this {@link Path}
+   *
+   * @exception NullPointerException if {@code other} is {@code null}
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  public final int indexOf(final Path<?> other) {
+    return other == this ? 0 : Collections.indexOfSubList(this.elements, other.elements);
+  }
+
+  /**
+   * Returns the zero-based index identifying the position of the
+   * first occurrence of a {@link Path} {@linkplain #equals(Object)
+   * equal to} supplied {@link Path} within this {@link Path}, or a
+   * negative value if the supplied {@link Path} does not occur within
+   * this {@link Path}.
+   *
+   * <p>The supplied {@link BiPredicate} is used to test each {@link
+   * Element} of the supplied {@link Path} against {@link Element}s
+   * from this {@link Path}.  The first argument is an {@link Element}
+   * drawn from this {@link Path}.  The second argument is an {@link
+   * Element} drawn from the supplied {@link Path}.  The {@link
+   * BiPredicate} returns {@code true} if its arguments are deemed to
+   * match.  The supplied {@link BiPredicate}'s {@link
+   * BiPredicate#test(Object, Object)} method must be idempotent and
+   * deterministic.</p>
+   *
+   * @param path the other {@link Path}; must not be {@code null}
+   *
+   * @param p the {@link BiPredicate} used to {@linkplain
+   * BiPredicate#test(Object, Object) test} {@link Element}s; must not
+   * be {@code null}
+   *
+   * @return the zero-based index identifying the position of the
+   * first occurrence of a {@link Path} {@linkplain #equals(Object)
+   * equal to} supplied {@link Path} within this {@link Path}, or a
+   * negative value if the supplied {@link Path} does not occur within
+   * this {@link Path}
+   *
+   * @exception NullPointerException if either {@code path} or {@code
+   * p} is {@code null}
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  public final int indexOf(final Path<?> path, final BiPredicate<? super Element<?>, ? super Element<?>> p) {
+    final int pathSize = path.size();
+    final int sizeDiff = this.size() - pathSize;
+    OUTER_LOOP:
+    for (int i = 0; i <= sizeDiff; i++) {
+      for (int j = 0, k = i; j < pathSize; j++, k++) {
+        if (!p.test(this.elements.get(k), path.elements.get(j))) {
+          continue OUTER_LOOP;
+        }
+      }
+      return i;
+    }
+    return -1;
+  }
+
+  /**
+   * Returns {@code true} if this {@link Path} starts with a {@link
+   * Path} that is {@linkplain #equals(Object) equal to} the supplied
+   * {@link Path}.
+   *
+   * <p>This method returns {@code true} if and only if:</p>
+   *
+   * <ul>
+   *
+   * <li>{@code other} is identical to this {@link Path}, or</li>
+   *
+   * <li>An invocation of the {@link #indexOf(Path)} method with
+   * {@code other} as its sole argument returns {@code 0}</li>
+   *
+   * </ul>
+   *
+   * @param other the other {@link Path}; must not be {@code null}
+   *
+   * @return {@code true} if this {@link Path} starts with a {@link
+   * Path} that is {@linkplain #equals(Object) equal to} the supplied
+   * {@link Path}; {@code false} otherwise
+   *
+   * @exception NullPointerException if {@code other} is {@code null}
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see #indexOf(Path)
+   */
+  public final boolean startsWith(final Path<?> other) {
+    return other == this || this.indexOf(other) == 0;
+  }
+
+  /**
    * Returns the last {@link Element} in this {@link Path}.
    *
    * @return the last {@link Element} in this {@link Path}
@@ -518,6 +632,234 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
     return (Element<T>)this.elements.get(this.size() - 1);
   }
 
+  /**
+   * Returns the zero-based index identifying the position of the
+   * last occurrence of a {@link Path} {@linkplain #equals(Object)
+   * equal to} the supplied {@link Path} within this {@link Path}, or
+   * a negative value if the supplied {@link Path} does not occur
+   * within this {@link Path}.
+   *
+   * @param other the other {@link Path}; must not be {@code null}
+   *
+   * @return the zero-based index identifying the position of the
+   * last occurrence of a {@link Path} {@linkplain #equals(Object)
+   * equal to} supplied {@link Path} within this {@link Path}, or a
+   * negative value if the supplied {@link Path} does not occur within
+   * this {@link Path}
+   *
+   * @exception NullPointerException if {@code other} is {@code null}
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  public final int lastIndexOf(final Path<?> other) {
+    return other == this ? 0 : Collections.lastIndexOfSubList(this.elements, other.elements);
+  }
+
+  /**
+   * Returns the zero-based index identifying the position of the
+   * last occurrence of a {@link Path} {@linkplain #equals(Object)
+   * equal to} supplied {@link Path} within this {@link Path}, or a
+   * negative value if the supplied {@link Path} does not occur within
+   * this {@link Path}.
+   *
+   * <p>The supplied {@link BiPredicate} is used to test each {@link
+   * Element} of the supplied {@link Path} against {@link Element}s
+   * from this {@link Path}.  The first argument is an {@link Element}
+   * drawn from this {@link Path}.  The second argument is an {@link
+   * Element} drawn from the supplied {@link Path}.  The {@link
+   * BiPredicate} returns {@code true} if its arguments are deemed to
+   * match.  The supplied {@link BiPredicate}'s {@link
+   * BiPredicate#test(Object, Object)} method must be idempotent and
+   * deterministic.</p>
+   *
+   * @param path the other {@link Path}; must not be {@code null}
+   *
+   * @param p the {@link BiPredicate} used to {@linkplain
+   * BiPredicate#test(Object, Object) test} {@link Element}s; must not
+   * be {@code null}
+   *
+   * @return the zero-based index identifying the position of the
+   * last occurrence of a {@link Path} {@linkplain #equals(Object)
+   * equal to} supplied {@link Path} within this {@link Path}, or a
+   * negative value if the supplied {@link Path} does not occur within
+   * this {@link Path}
+   *
+   * @exception NullPointerException if either {@code path} or {@code
+   * p} is {@code null}
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  public final int lastIndexOf(final Path<?> path, final BiPredicate<? super Element<?>, ? super Element<?>> p) {
+    final int pathSize = path.size();
+    final int sizeDiff = this.size() - pathSize;
+    OUTER_LOOP:
+    for (int i = sizeDiff; i >= 0; i--) {
+      for (int j = 0, k = i; j < pathSize; j++, k++) {
+        if (!p.test(this.elements.get(k), path.elements.get(j))) {
+          continue OUTER_LOOP;
+        }
+      }
+      return i;
+    }
+    return -1;
+  }
+
+/**
+   * Returns {@code true} if this {@link Path} starts with a {@link
+   * Path} that is {@linkplain #equals(Object) equal to} the supplied
+   * {@link Path}.
+   *
+   * <p>The supplied {@link BiPredicate} is used to test each {@link
+   * Element} of the supplied {@link Path} against {@link Element}s
+   * from this {@link Path}.  The first argument is an {@link Element}
+   * drawn from this {@link Path}.  The second argument is an {@link
+   * Element} drawn from the supplied {@link Path}.  The {@link
+   * BiPredicate} returns {@code true} if its arguments are deemed to
+   * match.  The supplied {@link BiPredicate}'s {@link
+   * BiPredicate#test(Object, Object)} method must be idempotent and
+   * deterministic.</p>
+   *
+   * <p>This method returns {@code true} if and only if:</p>
+   *
+   * <ul>
+   *
+   * <li>{@code other} is identical to this {@link Path}, or</li>
+   *
+   * <li>An invocation of the {@link #indexOf(Path, BiPredicate)}
+   * method with {@code other} and {@code p} as its arguments returns
+   * {@code 0}</li>
+   *
+   * </ul>
+   *
+   * @param other the other {@link Path}; must not be {@code null}
+   *
+   * @param p the {@link BiPredicate} used to {@linkplain
+   * BiPredicate#test(Object, Object) test} {@link Element}s; must not
+   * be {@code null}
+   *
+   * @return {@code true} if this {@link Path} starts with a {@link
+   * Path} that is {@linkplain #equals(Object) equal to} the supplied
+   * {@link Path}; {@code false} otherwise
+   *
+   * @exception NullPointerException if {@code other} is {@code null}
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see #indexOf(Path, BiPredicate)
+   */
+  public final boolean startsWith(final Path<?> other, final BiPredicate<? super Element<?>, ? super Element<?>> p) {
+    return other == this || this.indexOf(other, p) == 0;
+  }
+
+  /**
+   * Returns {@code true} if this {@link Path} ends with a {@link
+   * Path} that is {@linkplain #equals(Object) equal to} the supplied
+   * {@link Path}.
+   *
+   * <p>This method returns {@code true} if and only if:</p>
+   *
+   * <ul>
+   *
+   * <li>{@code other} is identical to this {@link Path}, or</li>
+   *
+   * <li>An invocation of the {@link #lastIndexOf(Path)} method with
+   * {@code other} as its sole argument returns {@code 0} or a
+   * positive {@code int}, and that number plus the supplied {@link
+   * Path}'s {@linkplain #size() size} is equal to this {@link Path}'s
+   * {@linkplain #size() size}</li>
+   *
+   * </ul>
+   *
+   * @param other the other {@link Path}; must not be {@code null}
+   *
+   * @return {@code true} if this {@link Path} ends with a {@link
+   * Path} that is {@linkplain #equals(Object) equal to} the supplied
+   * {@link Path}; {@code false} otherwise
+   *
+   * @exception NullPointerException if {@code other} is {@code null}
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see #lastIndexOf(Path)
+   */
+  public final boolean endsWith(final Path<?> other) {
+    if (other == this) {
+      return true;
+    } else {
+      final int lastIndex = this.lastIndexOf(other);
+      return lastIndex >= 0 && lastIndex + other.size() == this.size();
+    }
+  }
+
+  /**
+   * Returns {@code true} if this {@link Path} ends with a {@link
+   * Path} that is {@linkplain #equals(Object) equal to} the supplied
+   * {@link Path}.
+   *
+   * <p>The supplied {@link BiPredicate} is used to test each {@link
+   * Element} of the supplied {@link Path} against {@link Element}s
+   * from this {@link Path}.  The first argument is an {@link Element}
+   * drawn from this {@link Path}.  The second argument is an {@link
+   * Element} drawn from the supplied {@link Path}.  The {@link
+   * BiPredicate} returns {@code true} if its arguments are deemed to
+   * match.  The supplied {@link BiPredicate}'s {@link
+   * BiPredicate#test(Object, Object)} method must be idempotent and
+   * deterministic.</p>
+   *
+   * <p>This method returns {@code true} if and only if:</p>
+   *
+   * <ul>
+   *
+   * <li>{@code other} is identical to this {@link Path}, or</li>
+   *
+   * <li>An invocation of the {@link #indexOf(Path, BiPredicate)}
+   * method with {@code other} and {@code p} as its arguments returns
+   * {@code 0} or a positive {@code int}, and if that number plus the
+   * supplied {@link Path}'s {@linkplain #size() size} is equal to
+   * this {@link Path}'s {@linkplain #size() size}</li>
+   *
+   * </ul>
+   *
+   * @param other the other {@link Path}; must not be {@code null}
+   *
+   * @param p the {@link BiPredicate} used to {@linkplain
+   * BiPredicate#test(Object, Object) test} {@link Element}s; must not
+   * be {@code null}
+   *
+   * @return {@code true} if this {@link Path} ends with a {@link
+   * Path} that is {@linkplain #equals(Object) equal to} the supplied
+   * {@link Path}; {@code false} otherwise
+   *
+   * @exception NullPointerException if {@code other} is {@code null}
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see #lastIndexOf(Path, BiPredicate)
+   */
+  public final boolean endsWith(final Path<?> other, final BiPredicate<? super Element<?>, ? super Element<?>> p) {
+    if (other == this) {
+      return true;
+    } else {
+      final int lastIndex = this.lastIndexOf(other, p);
+      return lastIndex >= 0 && lastIndex + other.size() == this.size();
+    }
+  }
+  
   /**
    * Calls the {@link Element#qualified()} method on the {@linkplain
    * lastElement() last element in this <code>Path</code>} and returns
