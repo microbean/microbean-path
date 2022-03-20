@@ -411,6 +411,31 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
   }
 
   /**
+   * Returns the {@link Path.Element} found at the supplied zero-based
+   * index.
+   *
+   * @param index the index of the {@link Path.Element} to return;
+   * must be {@code 0} or greater and less than this {@link Path}'s
+   * {@linkplain #size() size}
+   *
+   * @return the {@link Path.Element} found at the supplied zero-based
+   * index
+   *
+   * @exception IndexOutOfBoundsException if {@code index} does not
+   * meet the requirements described above
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   */
+  public final Element<?> get(final int index) {
+    return this.elements.get(index);
+  }
+
+  /**
    * Returns an {@link Iterator} that iterates over the {@linkplain
    * Element elements} of this {@link Path}, including the {@linkplain
    * #lastElement() last element}.
@@ -859,7 +884,7 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
       return lastIndex >= 0 && lastIndex + other.size() == this.size();
     }
   }
-  
+
   /**
    * Calls the {@link Element#qualified()} method on the {@linkplain
    * lastElement() last element in this <code>Path</code>} and returns
