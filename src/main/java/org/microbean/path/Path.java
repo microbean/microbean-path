@@ -264,6 +264,41 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
 
   /**
    * <em>Transliterates</em> this {@link Path} into another,
+   * semantically equivalent {@link Path} by producing a {@link Path}
+   * that is otherwise equal to this {@link Path} but that will return
+   * {@code true} from its {@link #transliterated()} method.
+   *
+   * <p>Transliteration can be needed when a {@link Path} is defined
+   * by a Java class and used by an application containing that Java
+   * class&mdash;because another Java class may have used the same
+   * element names to refer to different things.</p>
+   *
+   * <p>If this {@link Path} {@linkplain #transliterated() is
+   * already transliterated} then it is returned.</p>
+   *
+   * <p>This method calls {@link #transliterate(BiFunction)} with
+   * {@code null} as its sole argument.</p>
+   *
+   * @return the transliterated {@link Path}, which may be this {@link
+   * Path}; never {@code null}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   *
+   * @see #transliterate(BiFunction)
+   *
+   * @see #transliterated()
+   */
+  public final Path<T> transliterate() {
+    return transliterate(null);
+  }
+
+  /**
+   * <em>Transliterates</em> this {@link Path} into another,
    * semantically equivalent {@link Path} by applying the supplied
    * {@link BiFunction}, and returns the transliterated {@link Path}.
    *
