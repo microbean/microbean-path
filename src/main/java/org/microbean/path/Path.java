@@ -1151,6 +1151,38 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
     return prefix.toString();
   }
 
+  /**
+   * Returns a non-{@code null} {@link String} representation of this
+   * {@link Path}.
+   *
+   * <p>The format of the returned {@link String} is deliberately
+   * undefined and may change between revisions of this class without
+   * notice.</p>
+   *
+   * @return a non-{@code null} {@link String} representation of this
+   * {@link Path}
+   *
+   * @nullability This method never returns {@code null}.
+   *
+   * @idempotency This method is idempotent and deterministic.
+   *
+   * @threadsafety This method is safe for concurrent use by multiple
+   * threads.
+   */
+  @Override // Object
+  public final String toString() {
+    final StringBuilder sb = new StringBuilder();
+    Iterator<Element<?>> i = this.iterator();
+    while (i.hasNext()) {
+      sb.append(i.next());
+      if (i.hasNext()) {
+        sb.append('/');
+      }
+    }
+    sb.append(this.qualifiers());
+    return sb.toString();
+  }
+
 
   /*
    * Static methods.
@@ -1843,7 +1875,8 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
       final StringBuilder sb = new StringBuilder();
       final T qualified = this.qualified();
       if (qualified != null) {
-        sb.append(qualified).append(':');
+        // Handle the extremely common case that qualified is a Type.
+        sb.append(qualified instanceof Type t ? t.getTypeName() : qualified).append(':');
       }
       sb.append(name);
       final Map<?, ?> map = this.qualifiers().toMap();
