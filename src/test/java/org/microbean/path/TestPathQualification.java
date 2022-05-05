@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 
 import org.junit.jupiter.api.Test;
 
+import org.microbean.qualifier.Qualifier;
 import org.microbean.qualifier.Qualifiers;
 
 import org.microbean.path.Path.Element;
@@ -41,17 +42,19 @@ final class TestPathQualification {
   @Test
   final void testPathQualification() {
     final Path<Class<?>> p =
-      new Path<>(Qualifiers.of("env", "test"),
-                 new Element<>(Qualifiers.of("foo", "bar"), String.class, "c"));
+      new Path<>(Qualifiers.of(Qualifier.<String, String>of("env", "test")),
+                 new Element<>(Qualifiers.of(Qualifier.<String, String>of("foo", "bar")),
+                               String.class,
+                               "c"));
     final Qualifiers<String, Object> pathQualifiers = p.qualifiers();
     assertNotNull(pathQualifiers);
-    final Iterator<? extends Entry<String, Object>> iterator = pathQualifiers.iterator();
+    final Iterator<? extends Qualifier<String, Object>> iterator = pathQualifiers.iterator();
     assertTrue(iterator.hasNext());
-    Entry<? extends String, ?> entry = iterator.next();
+    Qualifier<? extends String, ?> entry = iterator.next();
     assertTrue(iterator.hasNext());
-    assertEquals("c.foo", entry.getKey());
+    assertEquals("c.foo", entry.name());
     entry = iterator.next();
-    assertEquals("env", entry.getKey());
+    assertEquals("env", entry.name());
     assertFalse(iterator.hasNext());
   }
 
