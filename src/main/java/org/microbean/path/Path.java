@@ -38,8 +38,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.Spliterator;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
@@ -51,6 +53,7 @@ import org.microbean.constant.Constables;
 import org.microbean.development.annotation.Experimental;
 
 import org.microbean.qualifier.Qualified;
+import org.microbean.qualifier.Qualifier;
 import org.microbean.qualifier.Qualifiers;
 
 import static java.lang.constant.ConstantDescs.BSM_INVOKE;
@@ -184,6 +187,7 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
   }
 
   @SuppressWarnings("unchecked")
+  // Also used by #describeConstable()
   private Path(final Qualifiers<? extends String, ?> qualifiers,
                final List<? extends Element<?>> elements,
                final Element<? extends T> lastElement,
@@ -191,23 +195,28 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
     super();
     final int size = elements.size();
     if (size > 0) {
-      Map<String, Object> pathQualifiers = null;
+      Set<Qualifier<String, Object>> pathQualifiers = null;
       final List<Element<?>> newList = new ArrayList<>(size + 1);
       StringBuilder prefix = null;
       for (int i = 0; i < size; i++) {
         final Element<?> e = elements.get(i);
         newList.add(e);
-        final Qualifiers<? extends String, ?> eQualifiers = e.qualifiers();
+        final Qualifiers<String, Object> eQualifiers = e.qualifiers();
         if (!eQualifiers.isEmpty()) {
           if (prefix == null) {
             prefix = new StringBuilder();
           }
           if (pathQualifiers == null) {
-            pathQualifiers = new TreeMap<>(qualifiers.toMap());
+            pathQualifiers = new TreeSet<>();
+            for (final Qualifier<? extends String, ?> q : qualifiers) {
+              pathQualifiers.add((Qualifier<String, Object>)q);
+            }
           }
           prefix.append(e.name()).append(PREFIX_SEPARATOR_CHAR);
           final String finalPrefix = prefix.toString();
-          pathQualifiers.putAll(((Qualifiers<String, Object>)eQualifiers).withPrefix(k -> finalPrefix + PREFIX_SEPARATOR + k).toMap());
+          for (final Qualifier<String, Object> q : eQualifiers.withPrefix(q -> finalPrefix + PREFIX_SEPARATOR + q.name())) {
+            pathQualifiers.add(q);
+          }
         }
       }
       newList.add(lastElement);
@@ -217,18 +226,23 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
         if (pathQualifiers == null) {
           this.qualifiers = (Qualifiers<String, Object>)qualifiers;
         } else {
-          this.qualifiers = new Qualifiers<>(pathQualifiers);
+          this.qualifiers = Qualifiers.of(pathQualifiers);
         }
       } else {
         if (prefix == null) {
           prefix = new StringBuilder();
         }
         if (pathQualifiers == null) {
-          pathQualifiers = new TreeMap<>(qualifiers.toMap());
+          pathQualifiers = new TreeSet<>();
+          for (final Qualifier<? extends String, ?> q : qualifiers) {
+            pathQualifiers.add((Qualifier<String, Object>)q);
+          }
         }
         final String finalPrefix = prefix.append(lastElement.name()).toString();
-        pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> finalPrefix + PREFIX_SEPARATOR + k).toMap());
-        this.qualifiers = new Qualifiers<>(pathQualifiers);
+        for (final Qualifier<String, Object> q : lastElement.qualifiers().withPrefix(q -> finalPrefix + PREFIX_SEPARATOR + q.name())) {
+          pathQualifiers.add(q);
+        }
+        this.qualifiers = Qualifiers.of(pathQualifiers);
       }
     } else {
       this.elements = List.of(lastElement);
@@ -236,9 +250,14 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
       if (lastElementQualifiers.isEmpty()) {
         this.qualifiers = (Qualifiers<String, Object>)qualifiers;
       } else {
-        final Map<String, Object> pathQualifiers = new TreeMap<>(qualifiers.toMap());
-        pathQualifiers.putAll(lastElement.qualifiers().withPrefix(k -> lastElement.name() + PREFIX_SEPARATOR + k).toMap());
-        this.qualifiers = new Qualifiers<>(pathQualifiers);
+        Set<Qualifier<String, Object>> pathQualifiers = new TreeSet<>();
+        for (final Qualifier<? extends String, ?> q : qualifiers) {
+          pathQualifiers.add((Qualifier<String, Object>)q);
+        }
+        for (final Qualifier<String, Object> q : lastElement.qualifiers().withPrefix(q -> lastElement.name() + PREFIX_SEPARATOR + q.name())) {
+          pathQualifiers.add(q);
+        }
+        this.qualifiers = Qualifiers.of(pathQualifiers);
       }
     }
     this.transliterated = transliterated;
@@ -597,7 +616,7 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
    *
    * <p>The supplied {@link BiPredicate} is used to test each {@link
    * Element} of the supplied {@link Path} against {@link Element}s
-   * from this {@link Path}.  The first argument is an {@link Element}
+   * from this {@link Path}.  The first argument is a {@link Element}
    * drawn from this {@link Path}.  The second argument is an {@link
    * Element} drawn from the supplied {@link Path}.  The {@link
    * BiPredicate} returns {@code true} if its arguments are deemed to
@@ -727,7 +746,7 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
    *
    * <p>The supplied {@link BiPredicate} is used to test each {@link
    * Element} of the supplied {@link Path} against {@link Element}s
-   * from this {@link Path}.  The first argument is an {@link Element}
+   * from this {@link Path}.  The first argument is a {@link Element}
    * drawn from this {@link Path}.  The second argument is an {@link
    * Element} drawn from the supplied {@link Path}.  The {@link
    * BiPredicate} returns {@code true} if its arguments are deemed to
@@ -777,8 +796,8 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
    *
    * <p>The supplied {@link BiPredicate} is used to test each {@link
    * Element} of the supplied {@link Path} against {@link Element}s
-   * from this {@link Path}.  The first argument is an {@link Element}
-   * drawn from this {@link Path}.  The second argument is an {@link
+   * from this {@link Path}.  The first argument is a {@link Element}
+   * drawn from this {@link Path}.  The second argument is a {@link
    * Element} drawn from the supplied {@link Path}.  The {@link
    * BiPredicate} returns {@code true} if its arguments are deemed to
    * match.  The supplied {@link BiPredicate}'s {@link
@@ -870,8 +889,8 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
    *
    * <p>The supplied {@link BiPredicate} is used to test each {@link
    * Element} of the supplied {@link Path} against {@link Element}s
-   * from this {@link Path}.  The first argument is an {@link Element}
-   * drawn from this {@link Path}.  The second argument is an {@link
+   * from this {@link Path}.  The first argument is a {@link Element}
+   * drawn from this {@link Path}.  The second argument is a {@link
    * Element} drawn from the supplied {@link Path}.  The {@link
    * BiPredicate} returns {@code true} if its arguments are deemed to
    * match.  The supplied {@link BiPredicate}'s {@link
@@ -1211,7 +1230,7 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
 
   /**
    * Returns a (<strong>usually new</strong>) {@link Path} formed from
-   * an {@link Element} formed from the supplied {@code qualified} and
+   * a {@link Element} formed from the supplied {@code qualified} and
    * an {@linkplain String#isEmpty() empty} {@linkplain Element#name()
    * name}.
    *
@@ -1240,7 +1259,7 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
 
   /**
    * Returns a (<strong>usually new</strong>) {@link Path} formed from
-   * an {@link Element} formed from the supplied {@code qualified} and
+   * a {@link Element} formed from the supplied {@code qualified} and
    * the supplied name.
    *
    * @param <T> the type of the {@link Path}
@@ -1387,8 +1406,8 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
    *
    * @param <T> the type of the {@link Path}
    *
-   * @param pathQualifiers the {@link Path}'s {@link Qualifiers}; must
-   * not be {@code null}
+   * @param pathQualifiers the {@link Path}'s {@linkplain Qualifiers
+   * qualifiers}; must not be {@code null}
    *
    * @param lastElement the {@linkplain #lastElement() last
    * <code>Element</code>} of the {@link Path}; must not be {@code
@@ -1418,7 +1437,7 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
    *
    * @param <T> the type of the new {@link Path}
    *
-   * @param pathQualifiers the {@link Path}'s {@link Qualifiers}; must
+   * @param pathQualifiers the {@link Path}'s {@linkplain Qualifiers qualifiers}; must
    * not be {@code null}
    *
    * @param elements the interior {@link Element}s of the {@link
@@ -1563,10 +1582,10 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
     /**
      * Creates a new {@link Element}.
      *
-     * @param qualifiers the {@link Qualifiers} qualifying this {@link
-     * Element}; may be {@code null} in which case an {@linkplain
-     * Qualifiers#of() empty <code>Qualifiers</code>} will be used
-     * instead
+     * @param qualifiers the {@linkplain Qualifiers qualifiers}
+     * qualifying this {@link Element}; may be {@code null} in which
+     * case an {@linkplain Qualifiers#of() empty
+     * <code>Qualifiers</code>} will be used instead
      *
      * @param name the name of this {@link Element}; may be {@code
      * null} only if {@code qualified} is not {@code null}
@@ -1595,10 +1614,10 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
     /**
      * Creates a new {@link Element}.
      *
-     * @param qualifiers the {@link Qualifiers} qualifying this {@link
-     * Element}; may be {@code null} in which case an {@linkplain
-     * Qualifiers#of() empty <code>Qualifiers</code>} will be used
-     * instead
+     * @param qualifiers the {@linkplain Qualifiers qualifiers}
+     * qualifying this {@link Element}; may be {@code null} in which
+     * case an {@linkplain Qualifiers#of() empty
+     * <code>Qualifiers</code>} will be used instead
      *
      * @param qualified the thing this {@link Element} describes; may
      * be {@code null}
@@ -1778,7 +1797,7 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
      * {@linkplain String#isEmpty() empty} in which case {@code this}
      * will be returned
      *
-     * @return an {@link Element}, <strong>usually newly
+     * @return a {@link Element}, <strong>usually newly
      * created</strong>, whose {@linkplain #qualifiers() qualifiers}
      * have keys that are prefixed with the supplied {@code prefix}
      *
@@ -1879,9 +1898,9 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
         sb.append(qualified instanceof Type t ? t.getTypeName() : qualified).append(':');
       }
       sb.append(name);
-      final Map<?, ?> map = this.qualifiers().toMap();
-      if (!map.isEmpty()) {
-        sb.append(map);
+      final Qualifiers<?, ?> q = this.qualifiers();
+      if (!q.isEmpty()) {
+        sb.append(q.toString());
       }
       return sb.toString();
     }
@@ -1896,7 +1915,7 @@ public final class Path<T> implements Iterable<Path.Element<?>>, Qualified<Strin
      * Returns a {@link Element} that {@linkplain #isRoot() is a
      * <em>root element</em>}.
      *
-     * @return an {@link Element} that {@linkplain #isRoot() is a
+     * @return a {@link Element} that {@linkplain #isRoot() is a
      * <em>root element</em>}
      *
      * @nullability This method never returns {@code null}.

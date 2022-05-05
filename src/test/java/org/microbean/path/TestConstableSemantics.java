@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import org.microbean.qualifier.Qualifier;
 import org.microbean.qualifier.Qualifiers;
 
 import org.microbean.path.Path.Element;
@@ -38,9 +39,11 @@ final class TestConstableSemantics {
   @Test
   final void testConstableSemantics() throws ReflectiveOperationException {
     final Path<String> p =
-      new Path<>(Qualifiers.of("env", "test"), List.of(Element.of("a", "a"), Element.of("b", "b")), Element.of("c", "c"));
-    assertEquals(p,
-                 p.describeConstable().orElseThrow().resolveConstantDesc(privateLookupIn(Path.class, lookup())));
+      new Path<>(Qualifiers.of(Qualifier.<String, String>of("env", "test")),
+                 List.of(Element.of("a", "a"),
+                         Element.of("b", "b")),
+                 Element.of("c", "c"));
+    assertEquals(p, p.describeConstable().orElseThrow().resolveConstantDesc(privateLookupIn(Path.class, lookup())));
   }
 
 }
